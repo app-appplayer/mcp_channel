@@ -3,14 +3,25 @@ import 'package:test/test.dart';
 
 void main() {
   group('Session', () {
-    final conversation = ConversationKey(
-      channelType: 'slack',
-      tenantId: 'T123',
-      roomId: 'C456',
+    final channelIdentity = ChannelIdentity(
+      platform: 'slack',
+      channelId: 'T123',
     );
 
-    final identity = ChannelIdentity.user(id: 'U123', displayName: 'Test User');
-    final principal = Principal.basic(identity: identity, tenantId: 'T123');
+    final conversation = ConversationKey(
+      channel: channelIdentity,
+      conversationId: 'C456',
+    );
+
+    final identity = ChannelIdentity(
+      platform: 'slack',
+      channelId: 'U123',
+      displayName: 'Test User',
+    );
+    final principal = Principal.basic(
+      identity: identity,
+      tenantId: 'T123',
+    );
     final now = DateTime.now();
 
     test('creates session with required fields', () {
@@ -164,45 +175,53 @@ void main() {
     });
 
     test('creates new session for new event', () async {
+      final channelId = ChannelIdentity(
+        platform: 'slack',
+        channelId: 'T123',
+      );
+
       final event = ChannelEvent.message(
-        eventId: 'evt_123',
-        channelType: 'slack',
-        identity: ChannelIdentity.user(id: 'U123'),
+        id: 'evt_123',
         conversation: ConversationKey(
-          channelType: 'slack',
-          tenantId: 'T123',
-          roomId: 'C456',
+          channel: channelId,
+          conversationId: 'C456',
+          userId: 'U123',
         ),
         text: 'Hello',
+        userId: 'U123',
+        userName: 'Test User',
       );
 
       final session = await manager.getOrCreateSession(event);
 
       expect(session, isNotNull);
-      expect(session.conversation.roomId, 'C456');
+      expect(session.conversation.conversationId, 'C456');
     });
 
     test('returns existing session for same conversation', () async {
+      final channelId = ChannelIdentity(
+        platform: 'slack',
+        channelId: 'T123',
+      );
+
       final conversation = ConversationKey(
-        channelType: 'slack',
-        tenantId: 'T123',
-        roomId: 'C456',
+        channel: channelId,
+        conversationId: 'C456',
+        userId: 'U123',
       );
 
       final event1 = ChannelEvent.message(
-        eventId: 'evt_1',
-        channelType: 'slack',
-        identity: ChannelIdentity.user(id: 'U123'),
+        id: 'evt_1',
         conversation: conversation,
         text: 'First',
+        userId: 'U123',
       );
 
       final event2 = ChannelEvent.message(
-        eventId: 'evt_2',
-        channelType: 'slack',
-        identity: ChannelIdentity.user(id: 'U123'),
+        id: 'evt_2',
         conversation: conversation,
         text: 'Second',
+        userId: 'U123',
       );
 
       final session1 = await manager.getOrCreateSession(event1);

@@ -3,6 +3,26 @@ import 'package:meta/meta.dart';
 /// File attachment information.
 @immutable
 class FileInfo {
+  const FileInfo({
+    required this.id,
+    required this.name,
+    this.mimeType,
+    this.size,
+    this.url,
+    this.thumbnailUrl,
+  });
+
+  factory FileInfo.fromJson(Map<String, dynamic> json) {
+    return FileInfo(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      mimeType: json['mimeType'] as String?,
+      size: json['size'] as int?,
+      url: json['url'] as String?,
+      thumbnailUrl: json['thumbnailUrl'] as String?,
+    );
+  }
+
   /// File identifier
   final String id;
 
@@ -20,15 +40,6 @@ class FileInfo {
 
   /// Thumbnail URL
   final String? thumbnailUrl;
-
-  const FileInfo({
-    required this.id,
-    required this.name,
-    this.mimeType,
-    this.size,
-    this.url,
-    this.thumbnailUrl,
-  });
 
   FileInfo copyWith({
     String? id,
@@ -56,17 +67,6 @@ class FileInfo {
         if (url != null) 'url': url,
         if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
       };
-
-  factory FileInfo.fromJson(Map<String, dynamic> json) {
-    return FileInfo(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      mimeType: json['mimeType'] as String?,
-      size: json['size'] as int?,
-      url: json['url'] as String?,
-      thumbnailUrl: json['thumbnailUrl'] as String?,
-    );
-  }
 
   @override
   bool operator ==(Object other) =>

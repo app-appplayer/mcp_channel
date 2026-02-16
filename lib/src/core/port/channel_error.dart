@@ -2,6 +2,8 @@ import 'package:meta/meta.dart';
 
 /// Standard error codes for channel operations.
 class ChannelErrorCode {
+  ChannelErrorCode._();
+
   /// Rate limit exceeded
   static const String rateLimited = 'rate_limited';
 
@@ -31,28 +33,11 @@ class ChannelErrorCode {
 
   /// Unknown error
   static const String unknown = 'unknown';
-
-  ChannelErrorCode._();
 }
 
 /// Error information for failed channel operations.
 @immutable
 class ChannelError implements Exception {
-  /// Error code
-  final String code;
-
-  /// Error message
-  final String message;
-
-  /// Whether the error is retryable
-  final bool retryable;
-
-  /// Suggested retry delay (if retryable)
-  final Duration? retryAfter;
-
-  /// Platform-specific error data
-  final Map<String, dynamic>? platformData;
-
   const ChannelError({
     required this.code,
     required this.message,
@@ -173,14 +158,6 @@ class ChannelError implements Exception {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        'code': code,
-        'message': message,
-        'retryable': retryable,
-        if (retryAfter != null) 'retryAfterMs': retryAfter!.inMilliseconds,
-        if (platformData != null) 'platformData': platformData,
-      };
-
   factory ChannelError.fromJson(Map<String, dynamic> json) {
     return ChannelError(
       code: json['code'] as String,
@@ -193,16 +170,39 @@ class ChannelError implements Exception {
     );
   }
 
+  /// Error code
+  final String code;
+
+  /// Error message
+  final String message;
+
+  /// Whether the error is retryable
+  final bool retryable;
+
+  /// Suggested retry delay (if retryable)
+  final Duration? retryAfter;
+
+  /// Platform-specific error data
+  final Map<String, dynamic>? platformData;
+
+  Map<String, dynamic> toJson() => {
+        'code': code,
+        'message': message,
+        'retryable': retryable,
+        if (retryAfter != null) 'retryAfterMs': retryAfter!.inMilliseconds,
+        if (platformData != null) 'platformData': platformData,
+      };
+
   @override
   String toString() => 'ChannelError(code: $code, message: $message)';
 }
 
 /// Exception wrapper for ChannelError.
 class ChannelException implements Exception {
+  const ChannelException(this.error);
+
   /// The underlying channel error.
   final ChannelError error;
-
-  const ChannelException(this.error);
 
   @override
   String toString() => 'ChannelException: ${error.message} (${error.code})';

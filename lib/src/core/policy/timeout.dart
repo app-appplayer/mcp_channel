@@ -5,6 +5,13 @@ import 'package:meta/meta.dart';
 /// Timeout policy configuration.
 @immutable
 class TimeoutPolicy {
+  const TimeoutPolicy({
+    this.connectionTimeout = const Duration(seconds: 10),
+    this.requestTimeout = const Duration(seconds: 30),
+    this.operationTimeout = const Duration(minutes: 2),
+    this.idleTimeout = const Duration(minutes: 5),
+  });
+
   /// Connection establishment timeout
   final Duration connectionTimeout;
 
@@ -16,13 +23,6 @@ class TimeoutPolicy {
 
   /// Idle timeout (for long-polling/websocket)
   final Duration idleTimeout;
-
-  const TimeoutPolicy({
-    this.connectionTimeout = const Duration(seconds: 10),
-    this.requestTimeout = const Duration(seconds: 30),
-    this.operationTimeout = const Duration(minutes: 2),
-    this.idleTimeout = const Duration(minutes: 5),
-  });
 
   TimeoutPolicy copyWith({
     Duration? connectionTimeout,
@@ -41,10 +41,10 @@ class TimeoutPolicy {
 
 /// Exception thrown when an operation times out.
 class OperationTimeoutException implements Exception {
+  const OperationTimeoutException(this.operation, this.timeout);
+
   final String operation;
   final Duration timeout;
-
-  const OperationTimeoutException(this.operation, this.timeout);
 
   @override
   String toString() =>
@@ -53,9 +53,9 @@ class OperationTimeoutException implements Exception {
 
 /// Utility for applying timeouts to operations.
 class TimeoutExecutor {
-  final TimeoutPolicy _policy;
-
   TimeoutExecutor(this._policy);
+
+  final TimeoutPolicy _policy;
 
   /// Execute operation with request timeout.
   Future<T> withRequestTimeout<T>(Future<T> Function() operation) {

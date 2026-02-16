@@ -5,21 +5,6 @@ import 'channel_error.dart';
 /// Result of sending a response to a channel.
 @immutable
 class SendResult {
-  /// Whether the send was successful
-  final bool success;
-
-  /// Platform message ID (if successful)
-  final String? messageId;
-
-  /// Error information (if failed)
-  final ChannelError? error;
-
-  /// Timestamp when message was sent
-  final DateTime? timestamp;
-
-  /// Platform-specific response data
-  final Map<String, dynamic>? platformData;
-
   const SendResult({
     required this.success,
     this.messageId,
@@ -54,14 +39,6 @@ class SendResult {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        'success': success,
-        if (messageId != null) 'messageId': messageId,
-        if (error != null) 'error': error!.toJson(),
-        if (timestamp != null) 'timestamp': timestamp!.toIso8601String(),
-        if (platformData != null) 'platformData': platformData,
-      };
-
   factory SendResult.fromJson(Map<String, dynamic> json) {
     return SendResult(
       success: json['success'] as bool,
@@ -75,6 +52,29 @@ class SendResult {
       platformData: json['platformData'] as Map<String, dynamic>?,
     );
   }
+
+  /// Whether the send was successful
+  final bool success;
+
+  /// Platform message ID (if successful)
+  final String? messageId;
+
+  /// Error information (if failed)
+  final ChannelError? error;
+
+  /// Timestamp when message was sent
+  final DateTime? timestamp;
+
+  /// Platform-specific response data
+  final Map<String, dynamic>? platformData;
+
+  Map<String, dynamic> toJson() => {
+        'success': success,
+        if (messageId != null) 'messageId': messageId,
+        if (error != null) 'error': error!.toJson(),
+        if (timestamp != null) 'timestamp': timestamp!.toIso8601String(),
+        if (platformData != null) 'platformData': platformData,
+      };
 
   @override
   String toString() => success

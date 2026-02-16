@@ -1,9 +1,17 @@
-import '../types/conversation_key.dart';
+import 'package:mcp_bundle/ports.dart';
+
 import 'session.dart';
 import 'session_state.dart';
 
 /// Session store configuration.
 class SessionStoreConfig {
+  const SessionStoreConfig({
+    this.defaultTimeout = const Duration(hours: 24),
+    this.maxHistorySize = 100,
+    this.cleanupInterval = const Duration(minutes: 15),
+    this.persistent = false,
+  });
+
   /// Default session timeout
   final Duration defaultTimeout;
 
@@ -15,13 +23,6 @@ class SessionStoreConfig {
 
   /// Whether to persist across restarts
   final bool persistent;
-
-  const SessionStoreConfig({
-    this.defaultTimeout = const Duration(hours: 24),
-    this.maxHistorySize = 100,
-    this.cleanupInterval = const Duration(minutes: 15),
-    this.persistent = false,
-  });
 
   SessionStoreConfig copyWith({
     Duration? defaultTimeout,
@@ -40,9 +41,9 @@ class SessionStoreConfig {
 
 /// Exception thrown when a session is not found.
 class SessionNotFound implements Exception {
-  final String sessionId;
-
   const SessionNotFound(this.sessionId);
+
+  final String sessionId;
 
   @override
   String toString() => 'SessionNotFound: $sessionId';
@@ -82,6 +83,11 @@ class InMemorySessionStore implements SessionStore {
   final Map<String, String> _conversationIndex = {};
   final Map<String, String> _userIndex = {};
 
+  /// Generate a unique key from ConversationKey.
+  String _conversationKeyToString(ConversationKey conv) {
+    return '${conv.channel.platform}:${conv.channel.channelId}:${conv.conversationId}';
+  }
+
   @override
   Future<Session?> get(String sessionId) async {
     return _sessions[sessionId];
@@ -89,7 +95,7 @@ class InMemorySessionStore implements SessionStore {
 
   @override
   Future<Session?> getByConversation(ConversationKey conversation) async {
-    final sessionId = _conversationIndex[conversation.key];
+    final sessionId = _conversationIndex[_conversationKeyToString(conversation)];
     return sessionId != null ? _sessions[sessionId] : null;
   }
 
@@ -103,10 +109,10 @@ class InMemorySessionStore implements SessionStore {
   @override
   Future<void> save(Session session) async {
     _sessions[session.id] = session;
-    _conversationIndex[session.conversation.key] = session.id;
+    _conversationIndex[_conversationKeyToString(session.conversation)] = session.id;
 
     final userKey =
-        '${session.conversation.channelType}:${session.principal.identity.id}';
+        '${session.conversation.channel.platform}:${session.principal.identity.channelId}';
     _userIndex[userKey] = session.id;
   }
 
@@ -114,10 +120,10 @@ class InMemorySessionStore implements SessionStore {
   Future<void> delete(String sessionId) async {
     final session = _sessions.remove(sessionId);
     if (session != null) {
-      _conversationIndex.remove(session.conversation.key);
+      _conversationIndex.remove(_conversationKeyToString(session.conversation));
 
       final userKey =
-          '${session.conversation.channelType}:${session.principal.identity.id}';
+          '${session.conversation.channel.platform}:${session.principal.identity.channelId}';
       _userIndex.remove(userKey);
     }
   }

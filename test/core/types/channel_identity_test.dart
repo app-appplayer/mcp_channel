@@ -2,62 +2,164 @@ import 'package:mcp_channel/mcp_channel.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('ChannelIdentity', () {
-    group('factory constructors', () {
-      test('user creates user identity', () {
-        final identity = ChannelIdentity.user(
-          id: 'U123',
-          displayName: 'John Doe',
-          email: 'john@example.com',
-        );
+  group('ChannelIdentity (from mcp_bundle)', () {
+    test('creates identity with required fields', () {
+      const identity = ChannelIdentity(
+        platform: 'slack',
+        channelId: 'T123',
+      );
 
-        expect(identity.type, IdentityType.user);
-        expect(identity.id, 'U123');
-        expect(identity.displayName, 'John Doe');
-        expect(identity.email, 'john@example.com');
-      });
+      expect(identity.platform, 'slack');
+      expect(identity.channelId, 'T123');
+      expect(identity.displayName, isNull);
+    });
 
-      test('bot creates bot identity', () {
-        final identity = ChannelIdentity.bot(
-          id: 'B123',
-          displayName: 'MyBot',
-        );
+    test('creates identity with display name', () {
+      const identity = ChannelIdentity(
+        platform: 'slack',
+        channelId: 'U123',
+        displayName: 'Test User',
+      );
 
-        expect(identity.type, IdentityType.bot);
-        expect(identity.id, 'B123');
-        expect(identity.displayName, 'MyBot');
-      });
-
-      test('system creates system identity', () {
-        final identity = ChannelIdentity.system(
-          id: 'SYS',
-          displayName: 'System',
-        );
-
-        expect(identity.type, IdentityType.system);
-        expect(identity.id, 'SYS');
-      });
+      expect(identity.platform, 'slack');
+      expect(identity.channelId, 'U123');
+      expect(identity.displayName, 'Test User');
     });
 
     group('equality', () {
       test('equal identities have same hash', () {
-        final identity1 = ChannelIdentity.user(id: 'U123');
-        final identity2 = ChannelIdentity.user(id: 'U123');
+        const identity1 = ChannelIdentity(
+          platform: 'slack',
+          channelId: 'U123',
+        );
+        const identity2 = ChannelIdentity(
+          platform: 'slack',
+          channelId: 'U123',
+        );
 
         expect(identity1, equals(identity2));
         expect(identity1.hashCode, equals(identity2.hashCode));
       });
 
-      test('different identities are not equal', () {
-        final identity1 = ChannelIdentity.user(id: 'U123');
-        final identity2 = ChannelIdentity.user(id: 'U456');
+      test('different channelIds are not equal', () {
+        const identity1 = ChannelIdentity(
+          platform: 'slack',
+          channelId: 'U123',
+        );
+        const identity2 = ChannelIdentity(
+          platform: 'slack',
+          channelId: 'U456',
+        );
 
         expect(identity1, isNot(equals(identity2)));
       });
 
+      test('different platforms are not equal', () {
+        const identity1 = ChannelIdentity(
+          platform: 'slack',
+          channelId: 'U123',
+        );
+        const identity2 = ChannelIdentity(
+          platform: 'telegram',
+          channelId: 'U123',
+        );
+
+        expect(identity1, isNot(equals(identity2)));
+      });
+    });
+
+    group('toJson/fromJson', () {
+      test('round-trip serialization works', () {
+        const original = ChannelIdentity(
+          platform: 'slack',
+          channelId: 'T123',
+          displayName: 'Test Workspace',
+        );
+
+        final json = original.toJson();
+        final restored = ChannelIdentity.fromJson(json);
+
+        expect(restored.platform, original.platform);
+        expect(restored.channelId, original.channelId);
+        expect(restored.displayName, original.displayName);
+      });
+    });
+  });
+
+  group('ChannelIdentityInfo (mcp_channel extension)', () {
+    test('user creates user identity info', () {
+      final info = ChannelIdentityInfo.user(
+        id: 'U123',
+        username: 'testuser',
+        displayName: 'Test User',
+      );
+
+      expect(info.id, 'U123');
+      expect(info.type, IdentityType.user);
+      expect(info.username, 'testuser');
+      expect(info.displayName, 'Test User');
+    });
+
+    test('bot creates bot identity info', () {
+      final info = ChannelIdentityInfo.bot(
+        id: 'B123',
+        displayName: 'MyBot',
+      );
+
+      expect(info.id, 'B123');
+      expect(info.type, IdentityType.bot);
+      expect(info.displayName, 'MyBot');
+    });
+
+    test('system creates system identity info', () {
+      final info = ChannelIdentityInfo.system(
+        id: 'SYS',
+        displayName: 'System',
+      );
+
+      expect(info.id, 'SYS');
+      expect(info.type, IdentityType.system);
+    });
+
+    test('creates identity info with all fields', () {
+      final info = ChannelIdentityInfo.user(
+        id: 'U123',
+        username: 'testuser',
+        displayName: 'Test User',
+        avatarUrl: 'https://example.com/avatar.png',
+        email: 'test@example.com',
+        isAdmin: false,
+        platformData: const {'team': 'T123'},
+      );
+
+      expect(info.id, 'U123');
+      expect(info.username, 'testuser');
+      expect(info.displayName, 'Test User');
+      expect(info.avatarUrl, 'https://example.com/avatar.png');
+      expect(info.email, 'test@example.com');
+      expect(info.isAdmin, false);
+      expect(info.platformData?['team'], 'T123');
+    });
+
+    group('equality', () {
+      test('equal identities have same hash', () {
+        final info1 = ChannelIdentityInfo.user(id: 'U123');
+        final info2 = ChannelIdentityInfo.user(id: 'U123');
+
+        expect(info1, equals(info2));
+        expect(info1.hashCode, equals(info2.hashCode));
+      });
+
+      test('different ids are not equal', () {
+        final info1 = ChannelIdentityInfo.user(id: 'U123');
+        final info2 = ChannelIdentityInfo.user(id: 'U456');
+
+        expect(info1, isNot(equals(info2)));
+      });
+
       test('different types with same id are not equal', () {
-        final user = ChannelIdentity.user(id: 'ID123');
-        final bot = ChannelIdentity.bot(id: 'ID123');
+        final user = ChannelIdentityInfo.user(id: 'ID123');
+        final bot = ChannelIdentityInfo.bot(id: 'ID123');
 
         expect(user, isNot(equals(bot)));
       });
@@ -65,7 +167,7 @@ void main() {
 
     group('copyWith', () {
       test('creates copy with modified fields', () {
-        final original = ChannelIdentity.user(
+        final original = ChannelIdentityInfo.user(
           id: 'U123',
           displayName: 'Original Name',
         );
@@ -80,17 +182,19 @@ void main() {
 
     group('toJson/fromJson', () {
       test('round-trip serialization works', () {
-        final original = ChannelIdentity.user(
+        final original = ChannelIdentityInfo.user(
           id: 'U123',
+          username: 'testuser',
           displayName: 'Test User',
           email: 'test@example.com',
         );
 
         final json = original.toJson();
-        final restored = ChannelIdentity.fromJson(json);
+        final restored = ChannelIdentityInfo.fromJson(json);
 
         expect(restored.id, original.id);
         expect(restored.type, original.type);
+        expect(restored.username, original.username);
         expect(restored.displayName, original.displayName);
         expect(restored.email, original.email);
       });

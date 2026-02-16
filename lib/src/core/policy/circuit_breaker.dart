@@ -17,6 +17,18 @@ enum CircuitState {
 /// Circuit breaker policy configuration.
 @immutable
 class CircuitBreakerPolicy {
+  const CircuitBreakerPolicy({
+    this.failureThreshold = 5,
+    this.failureWindow = const Duration(minutes: 1),
+    this.recoveryTimeout = const Duration(seconds: 30),
+    this.successThreshold = 3,
+    this.triggerErrors = const {
+      'network_error',
+      'timeout',
+      'server_error',
+    },
+  });
+
   /// Number of failures before opening circuit
   final int failureThreshold;
 
@@ -31,18 +43,6 @@ class CircuitBreakerPolicy {
 
   /// Errors that trigger circuit breaker
   final Set<String> triggerErrors;
-
-  const CircuitBreakerPolicy({
-    this.failureThreshold = 5,
-    this.failureWindow = const Duration(minutes: 1),
-    this.recoveryTimeout = const Duration(seconds: 30),
-    this.successThreshold = 3,
-    this.triggerErrors = const {
-      'network_error',
-      'timeout',
-      'server_error',
-    },
-  });
 
   CircuitBreakerPolicy copyWith({
     int? failureThreshold,
@@ -63,9 +63,9 @@ class CircuitBreakerPolicy {
 
 /// Exception thrown when circuit is open.
 class CircuitOpenException implements Exception {
-  final String circuitName;
-
   const CircuitOpenException(this.circuitName);
+
+  final String circuitName;
 
   @override
   String toString() => 'CircuitOpenException: $circuitName is open';
@@ -73,6 +73,8 @@ class CircuitOpenException implements Exception {
 
 /// Circuit breaker implementation.
 class CircuitBreaker {
+  CircuitBreaker(this.name, this._policy);
+
   final CircuitBreakerPolicy _policy;
   final String name;
 
@@ -81,8 +83,6 @@ class CircuitBreaker {
   int _successCount = 0;
   DateTime? _lastFailureTime;
   DateTime? _openedAt;
-
-  CircuitBreaker(this.name, this._policy);
 
   /// Current circuit state.
   CircuitState get state => _state;

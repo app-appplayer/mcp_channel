@@ -55,7 +55,7 @@
 ///   }
 /// }
 /// ```
-library mcp_channel;
+library;
 
 // Core types
 export 'src/core/types/types.dart';
@@ -72,8 +72,8 @@ export 'src/core/idempotency/idempotency.dart';
 // Policy
 export 'src/core/policy/policy.dart';
 
-// MCP Integration
-export 'src/integration/integration.dart';
+// Integration interfaces (for connecting with mcp_llm, mcp_server, etc.)
+export 'src/core/integration/integration.dart';
 
 // Connectors
 export 'src/connectors/connectors.dart';

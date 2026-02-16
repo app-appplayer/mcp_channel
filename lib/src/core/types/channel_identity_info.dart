@@ -15,9 +15,95 @@ enum IdentityType {
   unknown,
 }
 
-/// Represents a user, bot, or system identity in a channel.
+/// Extended identity information for messaging platforms.
+///
+/// This provides detailed user information beyond the base ChannelIdentity
+/// from mcp_bundle which only contains platform, channelId, and displayName.
 @immutable
-class ChannelIdentity {
+class ChannelIdentityInfo {
+  const ChannelIdentityInfo({
+    required this.id,
+    required this.type,
+    this.displayName,
+    this.username,
+    this.avatarUrl,
+    this.email,
+    this.timezone,
+    this.locale,
+    this.isAdmin,
+    this.platformData,
+  });
+
+  /// Creates a user identity info.
+  factory ChannelIdentityInfo.user({
+    required String id,
+    String? displayName,
+    String? username,
+    String? avatarUrl,
+    String? email,
+    String? timezone,
+    String? locale,
+    bool? isAdmin,
+    Map<String, dynamic>? platformData,
+  }) {
+    return ChannelIdentityInfo(
+      id: id,
+      type: IdentityType.user,
+      displayName: displayName,
+      username: username,
+      avatarUrl: avatarUrl,
+      email: email,
+      timezone: timezone,
+      locale: locale,
+      isAdmin: isAdmin,
+      platformData: platformData,
+    );
+  }
+
+  /// Creates a bot identity info.
+  factory ChannelIdentityInfo.bot({
+    required String id,
+    String? displayName,
+    Map<String, dynamic>? platformData,
+  }) {
+    return ChannelIdentityInfo(
+      id: id,
+      type: IdentityType.bot,
+      displayName: displayName,
+      platformData: platformData,
+    );
+  }
+
+  /// Creates a system identity info.
+  factory ChannelIdentityInfo.system({
+    required String id,
+    String? displayName,
+  }) {
+    return ChannelIdentityInfo(
+      id: id,
+      type: IdentityType.system,
+      displayName: displayName,
+    );
+  }
+
+  factory ChannelIdentityInfo.fromJson(Map<String, dynamic> json) {
+    return ChannelIdentityInfo(
+      id: json['id'] as String,
+      type: IdentityType.values.firstWhere(
+        (e) => e.name == json['type'],
+        orElse: () => IdentityType.unknown,
+      ),
+      displayName: json['displayName'] as String?,
+      username: json['username'] as String?,
+      avatarUrl: json['avatarUrl'] as String?,
+      email: json['email'] as String?,
+      timezone: json['timezone'] as String?,
+      locale: json['locale'] as String?,
+      isAdmin: json['isAdmin'] as bool?,
+      platformData: json['platformData'] as Map<String, dynamic>?,
+    );
+  }
+
   /// Platform-specific user ID
   final String id;
 
@@ -48,72 +134,7 @@ class ChannelIdentity {
   /// Platform-specific data
   final Map<String, dynamic>? platformData;
 
-  const ChannelIdentity({
-    required this.id,
-    required this.type,
-    this.displayName,
-    this.username,
-    this.avatarUrl,
-    this.email,
-    this.timezone,
-    this.locale,
-    this.isAdmin,
-    this.platformData,
-  });
-
-  /// Creates a user identity.
-  factory ChannelIdentity.user({
-    required String id,
-    String? displayName,
-    String? username,
-    String? avatarUrl,
-    String? email,
-    String? timezone,
-    String? locale,
-    bool? isAdmin,
-    Map<String, dynamic>? platformData,
-  }) {
-    return ChannelIdentity(
-      id: id,
-      type: IdentityType.user,
-      displayName: displayName,
-      username: username,
-      avatarUrl: avatarUrl,
-      email: email,
-      timezone: timezone,
-      locale: locale,
-      isAdmin: isAdmin,
-      platformData: platformData,
-    );
-  }
-
-  /// Creates a bot identity.
-  factory ChannelIdentity.bot({
-    required String id,
-    String? displayName,
-    Map<String, dynamic>? platformData,
-  }) {
-    return ChannelIdentity(
-      id: id,
-      type: IdentityType.bot,
-      displayName: displayName,
-      platformData: platformData,
-    );
-  }
-
-  /// Creates a system identity.
-  factory ChannelIdentity.system({
-    required String id,
-    String? displayName,
-  }) {
-    return ChannelIdentity(
-      id: id,
-      type: IdentityType.system,
-      displayName: displayName,
-    );
-  }
-
-  ChannelIdentity copyWith({
+  ChannelIdentityInfo copyWith({
     String? id,
     IdentityType? type,
     String? displayName,
@@ -125,7 +146,7 @@ class ChannelIdentity {
     bool? isAdmin,
     Map<String, dynamic>? platformData,
   }) {
-    return ChannelIdentity(
+    return ChannelIdentityInfo(
       id: id ?? this.id,
       type: type ?? this.type,
       displayName: displayName ?? this.displayName,
@@ -152,28 +173,10 @@ class ChannelIdentity {
         if (platformData != null) 'platformData': platformData,
       };
 
-  factory ChannelIdentity.fromJson(Map<String, dynamic> json) {
-    return ChannelIdentity(
-      id: json['id'] as String,
-      type: IdentityType.values.firstWhere(
-        (e) => e.name == json['type'],
-        orElse: () => IdentityType.unknown,
-      ),
-      displayName: json['displayName'] as String?,
-      username: json['username'] as String?,
-      avatarUrl: json['avatarUrl'] as String?,
-      email: json['email'] as String?,
-      timezone: json['timezone'] as String?,
-      locale: json['locale'] as String?,
-      isAdmin: json['isAdmin'] as bool?,
-      platformData: json['platformData'] as Map<String, dynamic>?,
-    );
-  }
-
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ChannelIdentity &&
+      other is ChannelIdentityInfo &&
           runtimeType == other.runtimeType &&
           id == other.id &&
           type == other.type;
@@ -183,5 +186,5 @@ class ChannelIdentity {
 
   @override
   String toString() =>
-      'ChannelIdentity(id: $id, type: ${type.name}, displayName: $displayName)';
+      'ChannelIdentityInfo(id: $id, type: ${type.name}, displayName: $displayName)';
 }

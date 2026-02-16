@@ -1,14 +1,12 @@
 import 'dart:typed_data';
 
+import 'package:mcp_bundle/ports.dart';
+
 import '../../core/policy/channel_policy.dart';
-import '../../core/port/channel_capabilities.dart';
 import '../../core/port/channel_error.dart';
 import '../../core/port/connection_state.dart';
+import '../../core/port/extended_channel_capabilities.dart';
 import '../../core/port/send_result.dart';
-import '../../core/types/channel_event.dart';
-import '../../core/types/channel_identity.dart';
-import '../../core/types/channel_response.dart';
-import '../../core/types/conversation_key.dart';
 import '../../core/types/file_info.dart';
 import '../base_connector.dart';
 import 'slack_config.dart';
@@ -34,22 +32,35 @@ import 'slack_config.dart';
 /// }
 /// ```
 class SlackConnector extends BaseConnector {
+  SlackConnector({
+    required this.config,
+    ChannelPolicy? policy,
+  }) : policy = policy ?? ChannelPolicy.slack();
+
   @override
   final SlackConfig config;
 
   @override
   final ChannelPolicy policy;
 
-  @override
-  final String channelType = 'slack';
+  final ExtendedChannelCapabilities _extendedCapabilities =
+      ExtendedChannelCapabilities.slack();
 
   @override
-  final ChannelCapabilities capabilities = ChannelCapabilities.slack();
+  String get channelType => 'slack';
 
-  SlackConnector({
-    required this.config,
-    ChannelPolicy? policy,
-  }) : policy = policy ?? ChannelPolicy.slack();
+  @override
+  ChannelIdentity get identity => ChannelIdentity(
+        platform: 'slack',
+        channelId: config.workspaceId ?? 'default',
+        displayName: 'Slack Connector',
+      );
+
+  @override
+  ChannelCapabilities get capabilities => _extendedCapabilities.toBase();
+
+  @override
+  ExtendedChannelCapabilities get extendedCapabilities => _extendedCapabilities;
 
   @override
   Future<void> start() async {
@@ -75,7 +86,24 @@ class SlackConnector extends BaseConnector {
   }
 
   @override
-  Future<SendResult> send(ChannelResponse response) async {
+  Future<void> send(ChannelResponse response) async {
+    // Validate response
+    if (response.text == null && response.blocks == null) {
+      throw ArgumentError('Response must have text or blocks');
+    }
+
+    // Build Slack message payload
+    final payload = _buildMessagePayload(response);
+
+    // Send via Slack API
+    await _postMessage(
+      response.conversation.conversationId,
+      payload,
+    );
+  }
+
+  /// Send with result wrapper.
+  Future<SendResult> sendWithResult(ChannelResponse response) async {
     // Validate response
     if (response.text == null && response.blocks == null) {
       return SendResult.failure(
@@ -92,9 +120,8 @@ class SlackConnector extends BaseConnector {
 
       // Send via Slack API
       final result = await _postMessage(
-        response.conversation.roomId,
+        response.conversation.conversationId,
         payload,
-        threadTs: response.conversation.threadId,
       );
 
       return SendResult.success(
@@ -113,33 +140,29 @@ class SlackConnector extends BaseConnector {
   }
 
   @override
-  Future<ChannelIdentity?> getIdentity(String userId) async {
-    try {
-      final userInfo = await _getUserInfo(userId);
-      if (userInfo == null) return null;
+  Future<void> sendTyping(ConversationKey conversation) async {
+    // Slack doesn't have a built-in typing indicator API for bots
+    // This is a no-op
+  }
 
-      final isBot = userInfo['is_bot'] as bool? ?? false;
-      if (isBot) {
-        return ChannelIdentity.bot(
-          id: userId,
-          displayName: userInfo['real_name'] as String? ??
-              userInfo['name'] as String? ??
-              userId,
-        );
-      }
+  @override
+  Future<void> edit(String messageId, ChannelResponse response) async {
+    // Use chat.update API
+    final payload = _buildMessagePayload(response);
+    payload['ts'] = messageId;
+    await _updateMessage(response.conversation.conversationId, payload);
+  }
 
-      return ChannelIdentity.user(
-        id: userId,
-        displayName: userInfo['real_name'] as String? ??
-            userInfo['name'] as String? ??
-            userId,
-        username: userInfo['name'] as String?,
-        avatarUrl: userInfo['profile']?['image_72'] as String?,
-        email: userInfo['profile']?['email'] as String?,
-      );
-    } catch (e) {
-      return null;
-    }
+  @override
+  Future<void> delete(String messageId) async {
+    // Use chat.delete API
+    // Placeholder for actual implementation
+  }
+
+  @override
+  Future<void> react(String messageId, String reaction) async {
+    // Use reactions.add API
+    // Placeholder for actual implementation
   }
 
   @override
@@ -151,11 +174,10 @@ class SlackConnector extends BaseConnector {
   }) async {
     try {
       final result = await _uploadFile(
-        conversation.roomId,
+        conversation.conversationId,
         name,
         data,
         mimeType: mimeType,
-        threadTs: conversation.threadId,
       );
 
       return FileInfo(
@@ -201,15 +223,15 @@ class SlackConnector extends BaseConnector {
     }
 
     if (response.blocks != null) {
-      payload['blocks'] = response.blocks!.map((b) => b.toJson()).toList();
+      payload['blocks'] = response.blocks;
     }
 
     if (response.replyTo != null) {
       payload['thread_ts'] = response.replyTo;
     }
 
-    if (response.metadata != null) {
-      payload['metadata'] = response.metadata;
+    if (response.options != null) {
+      payload.addAll(response.options!);
     }
 
     return payload;
@@ -217,19 +239,20 @@ class SlackConnector extends BaseConnector {
 
   Future<Map<String, dynamic>> _postMessage(
     String channel,
-    Map<String, dynamic> payload, {
-    String? threadTs,
-  }) async {
+    Map<String, dynamic> payload,
+  ) async {
     // Slack API call implementation
     // This would use chat.postMessage or chat.postEphemeral
     // Placeholder for actual implementation
     return {'ts': DateTime.now().millisecondsSinceEpoch.toString()};
   }
 
-  Future<Map<String, dynamic>?> _getUserInfo(String userId) async {
-    // Slack API call to users.info
+  Future<void> _updateMessage(
+    String channel,
+    Map<String, dynamic> payload,
+  ) async {
+    // Slack API call to chat.update
     // Placeholder for actual implementation
-    return null;
   }
 
   Future<Map<String, dynamic>> _uploadFile(
@@ -237,7 +260,6 @@ class SlackConnector extends BaseConnector {
     String name,
     Uint8List data, {
     String? mimeType,
-    String? threadTs,
   }) async {
     // Slack API call to files.upload
     // Placeholder for actual implementation
@@ -292,139 +314,151 @@ class SlackConnector extends BaseConnector {
 
   ChannelEvent _parseMessageEvent(Map<String, dynamic> event) {
     return ChannelEvent.message(
-      eventId: '${event['team']}_${event['ts']}',
-      channelType: channelType,
-      identity: _parseIdentity(event),
+      id: '${event['team']}_${event['ts']}',
       conversation: _parseConversation(event),
       text: event['text'] as String? ?? '',
-      replyTo: event['thread_ts'] as String?,
-      rawPayload: event,
+      userId: event['user'] as String?,
+      userName: event['user'] as String?,
+      timestamp: _parseTimestamp(event['ts']),
+      metadata: event,
     );
   }
 
   ChannelEvent _parseMentionEvent(Map<String, dynamic> event) {
-    return ChannelEvent.mention(
-      eventId: '${event['team']}_${event['ts']}',
-      channelType: channelType,
-      identity: _parseIdentity(event),
+    return ChannelEvent(
+      id: '${event['team']}_${event['ts']}',
       conversation: _parseConversation(event),
+      type: 'mention',
       text: event['text'] as String? ?? '',
-      rawPayload: event,
+      userId: event['user'] as String?,
+      userName: event['user'] as String?,
+      timestamp: _parseTimestamp(event['ts']),
+      metadata: event,
     );
   }
 
   ChannelEvent _parseFileEvent(Map<String, dynamic> event) {
     final file = event['files']?[0] as Map<String, dynamic>?;
-    return ChannelEvent.file(
-      eventId: '${event['team']}_${event['ts']}',
-      channelType: channelType,
-      identity: _parseIdentity(event),
+    return ChannelEvent(
+      id: '${event['team']}_${event['ts']}',
       conversation: _parseConversation(event),
-      file: file != null ? _parseFileInfo(file) : _emptyFileInfo(),
+      type: 'file',
       text: event['text'] as String?,
-      rawPayload: event,
+      userId: event['user'] as String?,
+      userName: event['user'] as String?,
+      timestamp: _parseTimestamp(event['ts']),
+      attachments: file != null
+          ? [
+              ChannelAttachment(
+                type: 'file',
+                url: file['url_private'] as String? ?? '',
+                filename: file['name'] as String?,
+                mimeType: file['mimetype'] as String?,
+                size: file['size'] as int?,
+              )
+            ]
+          : null,
+      metadata: event,
     );
   }
 
   ChannelEvent _parseReactionEvent(Map<String, dynamic> event) {
-    return ChannelEvent.reaction(
-      eventId: '${event['event_ts']}',
-      channelType: channelType,
-      identity: ChannelIdentity.user(
-        id: event['user'] as String,
-        displayName: event['user'] as String,
-      ),
+    return ChannelEvent(
+      id: event['event_ts'] as String? ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
       conversation: ConversationKey(
-        channelType: channelType,
-        tenantId: event['team'] as String? ?? 'unknown',
-        roomId: event['item']?['channel'] as String? ?? 'unknown',
+        channel: ChannelIdentity(
+          platform: 'slack',
+          channelId: event['team'] as String? ?? 'unknown',
+        ),
+        conversationId: event['item']?['channel'] as String? ?? 'unknown',
       ),
-      reaction: event['reaction'] as String? ?? '',
-      targetMessageId: event['item']?['ts'] as String? ?? '',
-      rawPayload: event,
+      type: 'reaction',
+      text: event['reaction'] as String?,
+      userId: event['user'] as String?,
+      userName: event['user'] as String?,
+      timestamp: _parseTimestamp(event['event_ts']),
+      metadata: {
+        ...event,
+        'target_message_id': event['item']?['ts'] as String?,
+      },
     );
   }
 
   ChannelEvent _parseJoinEvent(Map<String, dynamic> event) {
-    return ChannelEvent.join(
-      eventId: '${event['event_ts']}',
-      channelType: channelType,
-      identity: ChannelIdentity.user(
-        id: event['user'] as String,
-        displayName: event['user'] as String,
-      ),
+    return ChannelEvent(
+      id: event['event_ts'] as String? ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
       conversation: ConversationKey(
-        channelType: channelType,
-        tenantId: event['team'] as String? ?? 'unknown',
-        roomId: event['channel'] as String? ?? 'unknown',
+        channel: ChannelIdentity(
+          platform: 'slack',
+          channelId: event['team'] as String? ?? 'unknown',
+        ),
+        conversationId: event['channel'] as String? ?? 'unknown',
       ),
-      rawPayload: event,
+      type: 'join',
+      userId: event['user'] as String?,
+      userName: event['user'] as String?,
+      timestamp: _parseTimestamp(event['event_ts']),
+      metadata: event,
     );
   }
 
   ChannelEvent _parseLeaveEvent(Map<String, dynamic> event) {
-    return ChannelEvent.leave(
-      eventId: '${event['event_ts']}',
-      channelType: channelType,
-      identity: ChannelIdentity.user(
-        id: event['user'] as String,
-        displayName: event['user'] as String,
-      ),
+    return ChannelEvent(
+      id: event['event_ts'] as String? ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
       conversation: ConversationKey(
-        channelType: channelType,
-        tenantId: event['team'] as String? ?? 'unknown',
-        roomId: event['channel'] as String? ?? 'unknown',
+        channel: ChannelIdentity(
+          platform: 'slack',
+          channelId: event['team'] as String? ?? 'unknown',
+        ),
+        conversationId: event['channel'] as String? ?? 'unknown',
       ),
-      rawPayload: event,
+      type: 'leave',
+      userId: event['user'] as String?,
+      userName: event['user'] as String?,
+      timestamp: _parseTimestamp(event['event_ts']),
+      metadata: event,
     );
   }
 
   ChannelEvent _parseUnknownEvent(Map<String, dynamic> event) {
     return ChannelEvent(
-      eventId: event['event_ts'] as String? ??
+      id: event['event_ts'] as String? ??
           DateTime.now().millisecondsSinceEpoch.toString(),
-      type: ChannelEventType.unknown,
-      channelType: channelType,
-      identity: _parseIdentity(event),
       conversation: _parseConversation(event),
+      type: 'unknown',
+      userId: event['user'] as String?,
+      userName: event['user'] as String?,
       timestamp: DateTime.now(),
-      rawPayload: event,
-    );
-  }
-
-  ChannelIdentity _parseIdentity(Map<String, dynamic> event) {
-    final userId = event['user'] as String? ?? 'unknown';
-    return ChannelIdentity.user(
-      id: userId,
-      displayName: userId,
+      metadata: event,
     );
   }
 
   ConversationKey _parseConversation(Map<String, dynamic> event) {
     return ConversationKey(
-      channelType: channelType,
-      tenantId: event['team'] as String? ?? 'unknown',
-      roomId: event['channel'] as String? ?? 'unknown',
-      threadId: event['thread_ts'] as String?,
+      channel: ChannelIdentity(
+        platform: 'slack',
+        channelId: event['team'] as String? ?? 'unknown',
+      ),
+      conversationId: event['channel'] as String? ?? 'unknown',
+      userId: event['user'] as String?,
     );
   }
 
-  FileInfo _parseFileInfo(Map<String, dynamic> file) {
-    return FileInfo(
-      id: file['id'] as String,
-      name: file['name'] as String? ?? 'unknown',
-      mimeType: file['mimetype'] as String? ?? 'application/octet-stream',
-      size: file['size'] as int? ?? 0,
-      url: file['url_private'] as String?,
-    );
-  }
-
-  FileInfo _emptyFileInfo() {
-    return const FileInfo(
-      id: 'unknown',
-      name: 'unknown',
-      mimeType: 'application/octet-stream',
-      size: 0,
-    );
+  DateTime _parseTimestamp(dynamic ts) {
+    if (ts == null) return DateTime.now();
+    if (ts is String) {
+      // Slack timestamps are in format "1234567890.123456"
+      final parts = ts.split('.');
+      if (parts.isNotEmpty) {
+        final seconds = int.tryParse(parts[0]);
+        if (seconds != null) {
+          return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+        }
+      }
+    }
+    return DateTime.now();
   }
 }

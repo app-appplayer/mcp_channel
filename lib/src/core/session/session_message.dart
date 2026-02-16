@@ -5,26 +5,11 @@ import 'message_role.dart';
 /// Tool call information.
 @immutable
 class ToolCall {
-  /// Tool name
-  final String name;
-
-  /// Tool arguments
-  final Map<String, dynamic> arguments;
-
-  /// Call ID (for matching with results)
-  final String? callId;
-
   const ToolCall({
     required this.name,
     required this.arguments,
     this.callId,
   });
-
-  Map<String, dynamic> toJson() => {
-        'name': name,
-        'arguments': arguments,
-        if (callId != null) 'callId': callId,
-      };
 
   factory ToolCall.fromJson(Map<String, dynamic> json) {
     return ToolCall(
@@ -34,6 +19,21 @@ class ToolCall {
     );
   }
 
+  /// Tool name
+  final String name;
+
+  /// Tool arguments
+  final Map<String, dynamic> arguments;
+
+  /// Call ID (for matching with results)
+  final String? callId;
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'arguments': arguments,
+        if (callId != null) 'callId': callId,
+      };
+
   @override
   String toString() => 'ToolCall(name: $name, callId: $callId)';
 }
@@ -41,6 +41,24 @@ class ToolCall {
 /// Tool execution result.
 @immutable
 class ToolResult {
+  const ToolResult({
+    this.callId,
+    required this.name,
+    required this.content,
+    this.success = true,
+    this.error,
+  });
+
+  factory ToolResult.fromJson(Map<String, dynamic> json) {
+    return ToolResult(
+      callId: json['callId'] as String?,
+      name: json['name'] as String,
+      content: json['content'] as String,
+      success: json['success'] as bool? ?? true,
+      error: json['error'] as String?,
+    );
+  }
+
   /// Call ID (matching the tool call)
   final String? callId;
 
@@ -56,14 +74,6 @@ class ToolResult {
   /// Error message (if failed)
   final String? error;
 
-  const ToolResult({
-    this.callId,
-    required this.name,
-    required this.content,
-    this.success = true,
-    this.error,
-  });
-
   Map<String, dynamic> toJson() => {
         if (callId != null) 'callId': callId,
         'name': name,
@@ -72,16 +82,6 @@ class ToolResult {
         if (error != null) 'error': error,
       };
 
-  factory ToolResult.fromJson(Map<String, dynamic> json) {
-    return ToolResult(
-      callId: json['callId'] as String?,
-      name: json['name'] as String,
-      content: json['content'] as String,
-      success: json['success'] as bool? ?? true,
-      error: json['error'] as String?,
-    );
-  }
-
   @override
   String toString() => 'ToolResult(name: $name, success: $success)';
 }
@@ -89,27 +89,6 @@ class ToolResult {
 /// A message in session history.
 @immutable
 class SessionMessage {
-  /// Message role
-  final MessageRole role;
-
-  /// Message content
-  final String content;
-
-  /// Timestamp
-  final DateTime timestamp;
-
-  /// Original event ID (for user messages)
-  final String? eventId;
-
-  /// Tool calls (for assistant messages)
-  final List<ToolCall>? toolCalls;
-
-  /// Tool result (for tool messages)
-  final ToolResult? toolResult;
-
-  /// Metadata
-  final Map<String, dynamic>? metadata;
-
   const SessionMessage({
     required this.role,
     required this.content,
@@ -182,6 +161,48 @@ class SessionMessage {
     );
   }
 
+  factory SessionMessage.fromJson(Map<String, dynamic> json) {
+    return SessionMessage(
+      role: MessageRole.values.firstWhere(
+        (r) => r.name == json['role'],
+        orElse: () => MessageRole.user,
+      ),
+      content: json['content'] as String,
+      timestamp: DateTime.parse(json['timestamp'] as String),
+      eventId: json['eventId'] as String?,
+      toolCalls: json['toolCalls'] != null
+          ? (json['toolCalls'] as List)
+              .map((t) => ToolCall.fromJson(t as Map<String, dynamic>))
+              .toList()
+          : null,
+      toolResult: json['toolResult'] != null
+          ? ToolResult.fromJson(json['toolResult'] as Map<String, dynamic>)
+          : null,
+      metadata: json['metadata'] as Map<String, dynamic>?,
+    );
+  }
+
+  /// Message role
+  final MessageRole role;
+
+  /// Message content
+  final String content;
+
+  /// Timestamp
+  final DateTime timestamp;
+
+  /// Original event ID (for user messages)
+  final String? eventId;
+
+  /// Tool calls (for assistant messages)
+  final List<ToolCall>? toolCalls;
+
+  /// Tool result (for tool messages)
+  final ToolResult? toolResult;
+
+  /// Metadata
+  final Map<String, dynamic>? metadata;
+
   SessionMessage copyWith({
     MessageRole? role,
     String? content,
@@ -212,27 +233,6 @@ class SessionMessage {
         if (toolResult != null) 'toolResult': toolResult!.toJson(),
         if (metadata != null) 'metadata': metadata,
       };
-
-  factory SessionMessage.fromJson(Map<String, dynamic> json) {
-    return SessionMessage(
-      role: MessageRole.values.firstWhere(
-        (r) => r.name == json['role'],
-        orElse: () => MessageRole.user,
-      ),
-      content: json['content'] as String,
-      timestamp: DateTime.parse(json['timestamp'] as String),
-      eventId: json['eventId'] as String?,
-      toolCalls: json['toolCalls'] != null
-          ? (json['toolCalls'] as List)
-              .map((t) => ToolCall.fromJson(t as Map<String, dynamic>))
-              .toList()
-          : null,
-      toolResult: json['toolResult'] != null
-          ? ToolResult.fromJson(json['toolResult'] as Map<String, dynamic>)
-          : null,
-      metadata: json['metadata'] as Map<String, dynamic>?,
-    );
-  }
 
   @override
   String toString() =>

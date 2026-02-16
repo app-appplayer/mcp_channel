@@ -8,18 +8,6 @@ import 'timeout.dart';
 /// Combined channel policy configuration.
 @immutable
 class ChannelPolicy {
-  /// Rate limiting configuration
-  final RateLimitPolicy rateLimit;
-
-  /// Retry configuration
-  final RetryPolicy retry;
-
-  /// Circuit breaker configuration
-  final CircuitBreakerPolicy circuitBreaker;
-
-  /// Timeout configuration
-  final TimeoutPolicy timeout;
-
   const ChannelPolicy({
     this.rateLimit = const RateLimitPolicy(
       maxRequests: 30,
@@ -70,6 +58,18 @@ class ChannelPolicy {
         timeout: TimeoutPolicy(),
       );
 
+  /// Rate limiting configuration
+  final RateLimitPolicy rateLimit;
+
+  /// Retry configuration
+  final RetryPolicy retry;
+
+  /// Circuit breaker configuration
+  final CircuitBreakerPolicy circuitBreaker;
+
+  /// Timeout configuration
+  final TimeoutPolicy timeout;
+
   ChannelPolicy copyWith({
     RateLimitPolicy? rateLimit,
     RetryPolicy? retry,
@@ -87,17 +87,17 @@ class ChannelPolicy {
 
 /// Combined policy executor applying all policies.
 class PolicyExecutor {
-  final ChannelPolicy policy;
-  final RateLimiter _rateLimiter;
-  final Retrier _retrier;
-  final CircuitBreaker _circuitBreaker;
-  final TimeoutExecutor _timeoutExecutor;
-
   PolicyExecutor(this.policy, String channelName)
       : _rateLimiter = RateLimiter(policy.rateLimit),
         _retrier = Retrier(policy.retry),
         _circuitBreaker = CircuitBreaker(channelName, policy.circuitBreaker),
         _timeoutExecutor = TimeoutExecutor(policy.timeout);
+
+  final ChannelPolicy policy;
+  final RateLimiter _rateLimiter;
+  final Retrier _retrier;
+  final CircuitBreaker _circuitBreaker;
+  final TimeoutExecutor _timeoutExecutor;
 
   /// Get circuit breaker state.
   CircuitState get circuitState => _circuitBreaker.state;

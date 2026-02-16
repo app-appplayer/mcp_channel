@@ -1,25 +1,44 @@
 import 'dart:typed_data';
 
-import '../types/channel_event.dart';
-import '../types/channel_identity.dart';
-import '../types/channel_response.dart';
-import '../types/conversation_key.dart';
+import 'package:mcp_bundle/ports.dart'
+    show
+        ChannelPort,
+        ChannelCapabilities,
+        ChannelResponse,
+        ConversationKey;
+
+import '../types/channel_identity_info.dart';
 import '../types/file_info.dart';
-import 'channel_capabilities.dart';
 import 'connection_state.dart';
 import 'conversation_info.dart';
+import 'extended_channel_capabilities.dart';
 import 'send_result.dart';
 
-/// The primary abstraction for platform-agnostic messaging.
+// Re-export base ChannelPort from mcp_bundle
+export 'package:mcp_bundle/ports.dart'
+    show
+        ChannelPort,
+        ChannelIdentity,
+        ChannelCapabilities,
+        ChannelEvent,
+        ChannelResponse,
+        ConversationKey,
+        ChannelAttachment;
+
+/// Extended channel port with additional features for messaging platforms.
 ///
-/// This interface defines the contract between the MCP application layer
-/// and channel adapters. All platform-specific adapters (Slack, Discord,
-/// Telegram, etc.) implement this interface.
+/// Implements the base [ChannelPort] from mcp_bundle and adds:
+/// - Extended capabilities for messaging platforms
+/// - User identity lookup
+/// - Conversation information retrieval
+/// - File upload/download
+/// - Connection state management
+/// - Send with result wrapper
 ///
 /// Example usage:
 /// ```dart
 /// class MyBot {
-///   final ChannelPort channel;
+///   final ExtendedChannelPort channel;
 ///
 ///   MyBot(this.channel);
 ///
@@ -32,14 +51,14 @@ import 'send_result.dart';
 ///   }
 ///
 ///   Future<void> handleEvent(ChannelEvent event) async {
-///     if (event.type == ChannelEventType.message) {
+///     if (event.type == 'message') {
 ///       final response = ChannelResponse.text(
 ///         conversation: event.conversation,
 ///         text: 'Hello! You said: ${event.text}',
-///         replyTo: event.eventId,
+///         replyTo: event.id,
 ///       );
 ///
-///       final result = await channel.send(response);
+///       final result = await channel.sendWithResult(response);
 ///       if (!result.success) {
 ///         // Handle error
 ///       }
@@ -47,21 +66,16 @@ import 'send_result.dart';
 ///   }
 /// }
 /// ```
-abstract class ChannelPort {
+abstract class ExtendedChannelPort implements ChannelPort {
   /// Channel type identifier (slack, telegram, discord, etc.)
-  String get channelType;
+  /// Derived from identity.platform.
+  String get channelType => identity.platform;
 
-  /// Platform capabilities
-  ChannelCapabilities get capabilities;
-
-  /// Stream of incoming events
-  Stream<ChannelEvent> get events;
-
-  /// Send a response to the channel
-  Future<SendResult> send(ChannelResponse response);
+  /// Extended platform capabilities
+  ExtendedChannelCapabilities get extendedCapabilities;
 
   /// Get identity information for a user
-  Future<ChannelIdentity?> getIdentity(String userId);
+  Future<ChannelIdentityInfo?> getIdentityInfo(String userId);
 
   /// Get conversation information
   Future<ConversationInfo?> getConversation(ConversationKey key);
@@ -77,25 +91,25 @@ abstract class ChannelPort {
   /// Download a file
   Future<Uint8List?> downloadFile(String fileId);
 
-  /// Start the channel (connect, start polling, etc.)
-  Future<void> start();
-
-  /// Stop the channel
-  Future<void> stop();
-
   /// Check if channel is connected/running
   bool get isRunning;
 
   /// Connection state stream
   Stream<ConnectionState> get connectionState;
+
+  /// Send a response with result (wraps base send with SendResult).
+  Future<SendResult> sendWithResult(ChannelResponse response);
 }
 
-/// Base implementation of ChannelPort with common functionality.
+/// Base implementation of ExtendedChannelPort with common functionality.
 ///
 /// Adapters can extend this class for convenience methods.
-abstract class BaseChannelPort implements ChannelPort {
+abstract class BaseExtendedChannelPort implements ExtendedChannelPort {
   @override
   bool isRunning = false;
+
+  @override
+  ChannelCapabilities get capabilities => extendedCapabilities.toBase();
 
   /// Send a text message with retry on retryable errors.
   Future<SendResult> sendWithRetry(
@@ -103,7 +117,7 @@ abstract class BaseChannelPort implements ChannelPort {
     int maxRetries = 3,
   }) async {
     for (var i = 0; i < maxRetries; i++) {
-      final result = await send(response);
+      final result = await sendWithResult(response);
 
       if (result.success) return result;
 
@@ -112,14 +126,14 @@ abstract class BaseChannelPort implements ChannelPort {
       }
 
       if (result.error!.retryAfter != null) {
-        await Future.delayed(result.error!.retryAfter!);
+        await Future<void>.delayed(result.error!.retryAfter!);
       } else {
         // Exponential backoff
-        await Future.delayed(Duration(milliseconds: 100 * (1 << i)));
+        await Future<void>.delayed(Duration(milliseconds: 100 * (1 << i)));
       }
     }
 
-    return send(response);
+    return sendWithResult(response);
   }
 
   /// Send a simple text message.
@@ -128,15 +142,30 @@ abstract class BaseChannelPort implements ChannelPort {
     String text, {
     String? replyTo,
   }) {
-    return send(ChannelResponse.text(
+    return sendWithResult(ChannelResponse.text(
       conversation: conversation,
       text: text,
       replyTo: replyTo,
     ));
   }
 
-  /// Send a typing indicator.
-  Future<SendResult> sendTyping(ConversationKey conversation) {
-    return send(ChannelResponse.typing(conversation: conversation));
+  @override
+  Future<void> sendTyping(ConversationKey conversation) async {
+    // Default implementation - override if platform supports typing indicator
+  }
+
+  @override
+  Future<void> edit(String messageId, ChannelResponse response) {
+    throw UnsupportedError('Editing not supported by this channel');
+  }
+
+  @override
+  Future<void> delete(String messageId) {
+    throw UnsupportedError('Deleting not supported by this channel');
+  }
+
+  @override
+  Future<void> react(String messageId, String reaction) {
+    throw UnsupportedError('Reactions not supported by this channel');
   }
 }

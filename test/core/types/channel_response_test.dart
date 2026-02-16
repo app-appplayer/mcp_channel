@@ -2,11 +2,15 @@ import 'package:mcp_channel/mcp_channel.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('ChannelResponse', () {
+  group('ChannelResponse (from mcp_bundle)', () {
+    final channelIdentity = ChannelIdentity(
+      platform: 'slack',
+      channelId: 'T123',
+    );
+
     final conversation = ConversationKey(
-      channelType: 'slack',
-      tenantId: 'T123',
-      roomId: 'C456',
+      channel: channelIdentity,
+      conversationId: 'C456',
     );
 
     group('factory constructors', () {
@@ -16,10 +20,9 @@ void main() {
           text: 'Hello!',
         );
 
-        expect(response.type, ChannelResponseType.text);
+        expect(response.type, 'text');
         expect(response.text, 'Hello!');
         expect(response.conversation, conversation);
-        expect(response.attachments, isNull);
       });
 
       test('text with replyTo creates reply response', () {
@@ -33,109 +36,73 @@ void main() {
         expect(response.text, 'Reply text');
       });
 
-      test('file creates response with attachments', () {
-        final attachment = Attachment(
-          type: AttachmentType.file,
-          url: 'https://example.com/file.pdf',
-          name: 'file.pdf',
-        );
-
-        final response = ChannelResponse.file(
+      test('text with options passes platform-specific data', () {
+        final response = ChannelResponse.text(
           conversation: conversation,
-          attachments: [attachment],
-          text: 'See attached',
+          text: 'Hello!',
+          options: {'unfurl_links': false},
         );
 
-        expect(response.type, ChannelResponseType.file);
-        expect(response.attachments, hasLength(1));
-        expect(response.attachments!.first.name, 'file.pdf');
-        expect(response.text, 'See attached');
+        expect(response.options?['unfurl_links'], false);
       });
 
-      test('rich creates response with content blocks', () {
+      test('rich creates response with blocks', () {
         final blocks = [
-          ContentBlock.section(text: 'Section 1'),
+          {'type': 'section', 'text': {'type': 'mrkdwn', 'text': 'Hello'}},
         ];
 
         final response = ChannelResponse.rich(
           conversation: conversation,
           blocks: blocks,
+          text: 'Fallback text',
         );
 
-        expect(response.type, ChannelResponseType.rich);
+        expect(response.type, 'rich');
         expect(response.blocks, hasLength(1));
-        expect(response.blocks![0].type, ContentBlockType.section);
-      });
-
-      test('ephemeral creates ephemeral response', () {
-        final response = ChannelResponse.ephemeral(
-          conversation: conversation,
-          userId: 'U123',
-          text: 'Only you can see this',
-        );
-
-        expect(response.type, ChannelResponseType.ephemeral);
-        expect(response.ephemeral, isTrue);
-        expect(response.ephemeralUserId, 'U123');
-      });
-
-      test('update creates update response', () {
-        final response = ChannelResponse.update(
-          conversation: conversation,
-          targetMessageId: 'msg_123',
-          text: 'Updated text',
-        );
-
-        expect(response.type, ChannelResponseType.update);
-        expect(response.targetMessageId, 'msg_123');
-      });
-
-      test('delete creates delete response', () {
-        final response = ChannelResponse.delete(
-          conversation: conversation,
-          targetMessageId: 'msg_123',
-        );
-
-        expect(response.type, ChannelResponseType.delete);
-        expect(response.targetMessageId, 'msg_123');
-      });
-
-      test('typing creates typing indicator response', () {
-        final response = ChannelResponse.typing(
-          conversation: conversation,
-        );
-
-        expect(response.type, ChannelResponseType.typing);
-      });
-
-      test('reaction creates reaction response', () {
-        final response = ChannelResponse.reaction(
-          conversation: conversation,
-          targetMessageId: 'msg_123',
-          reaction: 'thumbsup',
-        );
-
-        expect(response.type, ChannelResponseType.reaction);
-        expect(response.reaction, 'thumbsup');
+        expect(response.blocks![0]['type'], 'section');
+        expect(response.text, 'Fallback text');
       });
     });
 
-    group('copyWith', () {
-      test('creates copy with modified fields', () {
-        final original = ChannelResponse.text(
-          conversation: conversation,
-          text: 'Original',
+    group('direct constructor', () {
+      test('creates response with attachments', () {
+        const attachment = ChannelAttachment(
+          type: 'file',
+          url: 'https://example.com/file.pdf',
+          filename: 'document.pdf',
+          mimeType: 'application/pdf',
+          size: 1024,
         );
 
-        final copy = original.copyWith(text: 'Modified');
+        final response = ChannelResponse(
+          conversation: conversation,
+          type: 'file',
+          text: 'See attached',
+          attachments: [attachment],
+        );
 
-        expect(copy.text, 'Modified');
-        expect(original.text, 'Original');
+        expect(response.type, 'file');
+        expect(response.attachments, hasLength(1));
+        expect(response.attachments![0].filename, 'document.pdf');
+      });
+
+      test('creates ephemeral-like response via options', () {
+        final response = ChannelResponse.text(
+          conversation: conversation,
+          text: 'Only you can see this',
+          options: {
+            'response_type': 'ephemeral',
+            'user': 'U123',
+          },
+        );
+
+        expect(response.options?['response_type'], 'ephemeral');
+        expect(response.options?['user'], 'U123');
       });
     });
 
     group('toJson/fromJson', () {
-      test('round-trip serialization works', () {
+      test('round-trip serialization works for text response', () {
         final original = ChannelResponse.text(
           conversation: conversation,
           text: 'Test response',
@@ -146,6 +113,63 @@ void main() {
 
         expect(restored.type, original.type);
         expect(restored.text, original.text);
+      });
+
+      test('round-trip serialization works for rich response', () {
+        final blocks = [
+          {'type': 'section', 'text': {'type': 'plain_text', 'text': 'Hello'}},
+        ];
+
+        final original = ChannelResponse.rich(
+          conversation: conversation,
+          blocks: blocks,
+        );
+
+        final json = original.toJson();
+        final restored = ChannelResponse.fromJson(json);
+
+        expect(restored.type, original.type);
+        expect(restored.blocks, isNotNull);
+        expect(restored.blocks![0]['type'], 'section');
+      });
+
+      test('serialization preserves conversation', () {
+        final original = ChannelResponse.text(
+          conversation: conversation,
+          text: 'Test',
+        );
+
+        final json = original.toJson();
+        final restored = ChannelResponse.fromJson(json);
+
+        expect(
+          restored.conversation.channel.platform,
+          original.conversation.channel.platform,
+        );
+        expect(
+          restored.conversation.conversationId,
+          original.conversation.conversationId,
+        );
+      });
+
+      test('serialization preserves attachments', () {
+        const attachment = ChannelAttachment(
+          type: 'image',
+          url: 'https://example.com/image.png',
+          filename: 'image.png',
+        );
+
+        final original = ChannelResponse(
+          conversation: conversation,
+          type: 'file',
+          attachments: [attachment],
+        );
+
+        final json = original.toJson();
+        final restored = ChannelResponse.fromJson(json);
+
+        expect(restored.attachments, hasLength(1));
+        expect(restored.attachments![0].url, attachment.url);
       });
     });
   });

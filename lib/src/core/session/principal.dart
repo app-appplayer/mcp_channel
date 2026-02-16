@@ -1,28 +1,9 @@
+import 'package:mcp_bundle/ports.dart';
 import 'package:meta/meta.dart';
-
-import '../types/channel_identity.dart';
 
 /// Authenticated identity with roles and permissions.
 @immutable
 class Principal {
-  /// Channel identity
-  final ChannelIdentity identity;
-
-  /// Tenant/workspace ID
-  final String tenantId;
-
-  /// Assigned roles
-  final Set<String> roles;
-
-  /// Granted permissions
-  final Set<String> permissions;
-
-  /// Authentication timestamp
-  final DateTime authenticatedAt;
-
-  /// Session expiration
-  final DateTime? expiresAt;
-
   const Principal({
     required this.identity,
     required this.tenantId,
@@ -65,6 +46,38 @@ class Principal {
       expiresAt: expiresAt,
     );
   }
+
+  factory Principal.fromJson(Map<String, dynamic> json) {
+    return Principal(
+      identity:
+          ChannelIdentity.fromJson(json['identity'] as Map<String, dynamic>),
+      tenantId: json['tenantId'] as String,
+      roles: Set<String>.from(json['roles'] as List),
+      permissions: Set<String>.from(json['permissions'] as List),
+      authenticatedAt: DateTime.parse(json['authenticatedAt'] as String),
+      expiresAt: json['expiresAt'] != null
+          ? DateTime.parse(json['expiresAt'] as String)
+          : null,
+    );
+  }
+
+  /// Channel identity
+  final ChannelIdentity identity;
+
+  /// Tenant/workspace ID
+  final String tenantId;
+
+  /// Assigned roles
+  final Set<String> roles;
+
+  /// Granted permissions
+  final Set<String> permissions;
+
+  /// Authentication timestamp
+  final DateTime authenticatedAt;
+
+  /// Session expiration
+  final DateTime? expiresAt;
 
   /// Check if principal has role
   bool hasRole(String role) => roles.contains(role);
@@ -111,20 +124,6 @@ class Principal {
         if (expiresAt != null) 'expiresAt': expiresAt!.toIso8601String(),
       };
 
-  factory Principal.fromJson(Map<String, dynamic> json) {
-    return Principal(
-      identity:
-          ChannelIdentity.fromJson(json['identity'] as Map<String, dynamic>),
-      tenantId: json['tenantId'] as String,
-      roles: Set<String>.from(json['roles'] as List),
-      permissions: Set<String>.from(json['permissions'] as List),
-      authenticatedAt: DateTime.parse(json['authenticatedAt'] as String),
-      expiresAt: json['expiresAt'] != null
-          ? DateTime.parse(json['expiresAt'] as String)
-          : null,
-    );
-  }
-
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -138,5 +137,5 @@ class Principal {
 
   @override
   String toString() =>
-      'Principal(identity: ${identity.id}, tenantId: $tenantId, roles: $roles)';
+      'Principal(identity: ${identity.channelId}, tenantId: $tenantId, roles: $roles)';
 }

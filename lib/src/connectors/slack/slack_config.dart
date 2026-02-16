@@ -5,6 +5,17 @@ import '../base_connector.dart';
 /// Slack connector configuration.
 @immutable
 class SlackConfig implements ConnectorConfig {
+  const SlackConfig({
+    required this.botToken,
+    this.appToken,
+    this.signingSecret,
+    this.workspaceId,
+    this.useSocketMode = true,
+    this.autoReconnect = true,
+    this.reconnectDelay = const Duration(seconds: 5),
+    this.maxReconnectAttempts = 10,
+  });
+
   /// Bot token (xoxb-...)
   final String botToken;
 
@@ -13,6 +24,9 @@ class SlackConfig implements ConnectorConfig {
 
   /// Signing secret for verifying requests
   final String? signingSecret;
+
+  /// Workspace ID for channel identification
+  final String? workspaceId;
 
   /// Whether to use Socket Mode
   final bool useSocketMode;
@@ -29,20 +43,11 @@ class SlackConfig implements ConnectorConfig {
   @override
   final int maxReconnectAttempts;
 
-  const SlackConfig({
-    required this.botToken,
-    this.appToken,
-    this.signingSecret,
-    this.useSocketMode = true,
-    this.autoReconnect = true,
-    this.reconnectDelay = const Duration(seconds: 5),
-    this.maxReconnectAttempts = 10,
-  });
-
   SlackConfig copyWith({
     String? botToken,
     String? appToken,
     String? signingSecret,
+    String? workspaceId,
     bool? useSocketMode,
     bool? autoReconnect,
     Duration? reconnectDelay,
@@ -52,6 +57,7 @@ class SlackConfig implements ConnectorConfig {
       botToken: botToken ?? this.botToken,
       appToken: appToken ?? this.appToken,
       signingSecret: signingSecret ?? this.signingSecret,
+      workspaceId: workspaceId ?? this.workspaceId,
       useSocketMode: useSocketMode ?? this.useSocketMode,
       autoReconnect: autoReconnect ?? this.autoReconnect,
       reconnectDelay: reconnectDelay ?? this.reconnectDelay,

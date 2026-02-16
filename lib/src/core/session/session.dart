@@ -1,6 +1,6 @@
+import 'package:mcp_bundle/ports.dart';
 import 'package:meta/meta.dart';
 
-import '../types/conversation_key.dart';
 import 'principal.dart';
 import 'session_message.dart';
 import 'session_state.dart';
@@ -8,6 +8,45 @@ import 'session_state.dart';
 /// Represents a conversation session with state and history.
 @immutable
 class Session {
+  const Session({
+    required this.id,
+    required this.conversation,
+    required this.principal,
+    required this.state,
+    required this.createdAt,
+    required this.lastActivityAt,
+    this.expiresAt,
+    this.context = const {},
+    this.history = const [],
+    this.metadata,
+  });
+
+  factory Session.fromJson(Map<String, dynamic> json) {
+    return Session(
+      id: json['id'] as String,
+      conversation:
+          ConversationKey.fromJson(json['conversation'] as Map<String, dynamic>),
+      principal:
+          Principal.fromJson(json['principal'] as Map<String, dynamic>),
+      state: SessionState.values.firstWhere(
+        (s) => s.name == json['state'],
+        orElse: () => SessionState.expired,
+      ),
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      lastActivityAt: DateTime.parse(json['lastActivityAt'] as String),
+      expiresAt: json['expiresAt'] != null
+          ? DateTime.parse(json['expiresAt'] as String)
+          : null,
+      context: Map<String, dynamic>.from(json['context'] as Map? ?? {}),
+      history: (json['history'] as List?)
+              ?.map(
+                  (m) => SessionMessage.fromJson(m as Map<String, dynamic>))
+              .toList() ??
+          [],
+      metadata: json['metadata'] as Map<String, dynamic>?,
+    );
+  }
+
   /// Unique session identifier
   final String id;
 
@@ -37,19 +76,6 @@ class Session {
 
   /// Additional metadata
   final Map<String, dynamic>? metadata;
-
-  const Session({
-    required this.id,
-    required this.conversation,
-    required this.principal,
-    required this.state,
-    required this.createdAt,
-    required this.lastActivityAt,
-    this.expiresAt,
-    this.context = const {},
-    this.history = const [],
-    this.metadata,
-  });
 
   /// Check if session is expired
   bool get isExpired =>
@@ -181,32 +207,6 @@ class Session {
         if (metadata != null) 'metadata': metadata,
       };
 
-  factory Session.fromJson(Map<String, dynamic> json) {
-    return Session(
-      id: json['id'] as String,
-      conversation:
-          ConversationKey.fromJson(json['conversation'] as Map<String, dynamic>),
-      principal:
-          Principal.fromJson(json['principal'] as Map<String, dynamic>),
-      state: SessionState.values.firstWhere(
-        (s) => s.name == json['state'],
-        orElse: () => SessionState.expired,
-      ),
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      lastActivityAt: DateTime.parse(json['lastActivityAt'] as String),
-      expiresAt: json['expiresAt'] != null
-          ? DateTime.parse(json['expiresAt'] as String)
-          : null,
-      context: Map<String, dynamic>.from(json['context'] as Map? ?? {}),
-      history: (json['history'] as List?)
-              ?.map(
-                  (m) => SessionMessage.fromJson(m as Map<String, dynamic>))
-              .toList() ??
-          [],
-      metadata: json['metadata'] as Map<String, dynamic>?,
-    );
-  }
-
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -217,5 +217,5 @@ class Session {
 
   @override
   String toString() =>
-      'Session(id: $id, state: ${state.name}, conversation: ${conversation.key})';
+      'Session(id: $id, state: ${state.name}, conversation: ${conversation.conversationId})';
 }

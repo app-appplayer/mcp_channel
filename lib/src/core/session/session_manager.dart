@@ -1,10 +1,8 @@
 import 'dart:async';
 
+import 'package:mcp_bundle/ports.dart';
 import 'package:uuid/uuid.dart';
 
-import '../types/channel_event.dart';
-import '../types/channel_identity.dart';
-import '../types/conversation_key.dart';
 import 'principal.dart';
 import 'session.dart';
 import 'session_message.dart';
@@ -13,22 +11,28 @@ import 'session_store.dart';
 
 /// High-level session management service.
 class SessionManager {
+  SessionManager(this._store, {SessionStoreConfig? config})
+      : _config = config ?? const SessionStoreConfig();
+
   final SessionStore _store;
   final SessionStoreConfig _config;
   final Uuid _uuid = const Uuid();
   Timer? _cleanupTimer;
-
-  SessionManager(this._store, {SessionStoreConfig? config})
-      : _config = config ?? const SessionStoreConfig();
 
   /// Generate a unique session ID.
   String _generateSessionId() => _uuid.v4();
 
   /// Create a principal from an event.
   Future<Principal> _createPrincipal(ChannelEvent event) async {
+    // Create identity from event's channel info
+    final identity = ChannelIdentity(
+      platform: event.conversation.channel.platform,
+      channelId: event.userId ?? 'unknown',
+      displayName: event.userName,
+    );
     return Principal.basic(
-      identity: event.identity,
-      tenantId: event.conversation.tenantId,
+      identity: identity,
+      tenantId: event.conversation.channel.channelId,
       expiresAt: DateTime.now().add(_config.defaultTimeout),
     );
   }
@@ -80,7 +84,7 @@ class SessionManager {
   }) async {
     final principal = Principal.basic(
       identity: identity,
-      tenantId: conversation.tenantId,
+      tenantId: conversation.channel.channelId,
       expiresAt: DateTime.now().add(_config.defaultTimeout),
     );
 

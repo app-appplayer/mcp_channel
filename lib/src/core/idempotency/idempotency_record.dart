@@ -6,6 +6,39 @@ import 'idempotency_status.dart';
 /// Record of an idempotent operation.
 @immutable
 class IdempotencyRecord {
+  const IdempotencyRecord({
+    required this.eventId,
+    required this.status,
+    this.result,
+    required this.createdAt,
+    this.completedAt,
+    required this.expiresAt,
+    this.lockHolder,
+    this.lockExpiresAt,
+  });
+
+  factory IdempotencyRecord.fromJson(Map<String, dynamic> json) {
+    return IdempotencyRecord(
+      eventId: json['eventId'] as String,
+      status: IdempotencyStatus.values.firstWhere(
+        (s) => s.name == json['status'],
+        orElse: () => IdempotencyStatus.expired,
+      ),
+      result: json['result'] != null
+          ? IdempotencyResult.fromJson(json['result'] as Map<String, dynamic>)
+          : null,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      completedAt: json['completedAt'] != null
+          ? DateTime.parse(json['completedAt'] as String)
+          : null,
+      expiresAt: DateTime.parse(json['expiresAt'] as String),
+      lockHolder: json['lockHolder'] as String?,
+      lockExpiresAt: json['lockExpiresAt'] != null
+          ? DateTime.parse(json['lockExpiresAt'] as String)
+          : null,
+    );
+  }
+
   /// Event ID (unique key)
   final String eventId;
 
@@ -29,17 +62,6 @@ class IdempotencyRecord {
 
   /// Lock expiration
   final DateTime? lockExpiresAt;
-
-  const IdempotencyRecord({
-    required this.eventId,
-    required this.status,
-    this.result,
-    required this.createdAt,
-    this.completedAt,
-    required this.expiresAt,
-    this.lockHolder,
-    this.lockExpiresAt,
-  });
 
   /// Check if the lock is still valid.
   bool get isLockValid =>
@@ -81,28 +103,6 @@ class IdempotencyRecord {
         if (lockExpiresAt != null)
           'lockExpiresAt': lockExpiresAt!.toIso8601String(),
       };
-
-  factory IdempotencyRecord.fromJson(Map<String, dynamic> json) {
-    return IdempotencyRecord(
-      eventId: json['eventId'] as String,
-      status: IdempotencyStatus.values.firstWhere(
-        (s) => s.name == json['status'],
-        orElse: () => IdempotencyStatus.expired,
-      ),
-      result: json['result'] != null
-          ? IdempotencyResult.fromJson(json['result'] as Map<String, dynamic>)
-          : null,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      completedAt: json['completedAt'] != null
-          ? DateTime.parse(json['completedAt'] as String)
-          : null,
-      expiresAt: DateTime.parse(json['expiresAt'] as String),
-      lockHolder: json['lockHolder'] as String?,
-      lockExpiresAt: json['lockExpiresAt'] != null
-          ? DateTime.parse(json['lockExpiresAt'] as String)
-          : null,
-    );
-  }
 
   @override
   String toString() =>

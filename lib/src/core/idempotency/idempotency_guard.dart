@@ -1,8 +1,8 @@
 import 'dart:async';
 
+import 'package:mcp_bundle/ports.dart';
 import 'package:uuid/uuid.dart';
 
-import '../types/channel_event.dart';
 import 'idempotency_config.dart';
 import 'idempotency_result.dart';
 import 'idempotency_status.dart';
@@ -10,17 +10,17 @@ import 'idempotency_store.dart';
 
 /// High-level guard for idempotent event processing.
 class IdempotencyGuard {
-  final IdempotencyStore _store;
-  final IdempotencyConfig _config;
-  final String _instanceId;
-  Timer? _cleanupTimer;
-
   IdempotencyGuard(
     this._store, {
     IdempotencyConfig? config,
     String? instanceId,
   })  : _config = config ?? const IdempotencyConfig(),
         _instanceId = instanceId ?? const Uuid().v4();
+
+  final IdempotencyStore _store;
+  final IdempotencyConfig _config;
+  final String _instanceId;
+  Timer? _cleanupTimer;
 
   /// Get the instance ID.
   String get instanceId => _instanceId;
@@ -30,7 +30,7 @@ class IdempotencyGuard {
     ChannelEvent event,
     Future<IdempotencyResult> Function() processor,
   ) {
-    return processWithKey(event.eventId, processor);
+    return processWithKey(event.id, processor);
   }
 
   /// Process with a custom idempotency key.

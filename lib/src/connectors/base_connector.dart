@@ -5,9 +5,7 @@ import '../core/policy/channel_policy.dart';
 import '../core/port/channel_port.dart';
 import '../core/port/connection_state.dart';
 import '../core/port/conversation_info.dart';
-import '../core/types/channel_event.dart';
-import '../core/types/channel_identity.dart';
-import '../core/types/conversation_key.dart';
+import '../core/types/channel_identity_info.dart';
 import '../core/types/file_info.dart';
 
 /// Base configuration for channel connectors.
@@ -29,7 +27,7 @@ abstract class ConnectorConfig {
 ///
 /// Provides common functionality for implementing platform-specific
 /// channel connectors.
-abstract class BaseConnector implements ChannelPort {
+abstract class BaseConnector implements ExtendedChannelPort {
   final _eventController = StreamController<ChannelEvent>.broadcast();
   final _connectionStateController =
       StreamController<ConnectionState>.broadcast();
@@ -134,7 +132,7 @@ abstract class BaseConnector implements ChannelPort {
   }
 
   @override
-  Future<ChannelIdentity?> getIdentity(String userId) {
+  Future<ChannelIdentityInfo?> getIdentityInfo(String userId) {
     // Default implementation returns null
     // Subclasses should override with platform-specific implementation
     return Future.value(null);
@@ -162,11 +160,11 @@ abstract class BaseConnector implements ChannelPort {
 
 /// Exception thrown by connector operations.
 class ConnectorException implements Exception {
+  const ConnectorException(this.message, {this.code, this.cause});
+
   final String message;
   final String? code;
   final Object? cause;
-
-  const ConnectorException(this.message, {this.code, this.cause});
 
   @override
   String toString() => code != null

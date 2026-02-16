@@ -15,24 +15,6 @@ enum RateLimitAction {
 /// Rate limiting policy configuration.
 @immutable
 class RateLimitPolicy {
-  /// Maximum requests per window
-  final int maxRequests;
-
-  /// Time window duration
-  final Duration window;
-
-  /// Burst allowance (temporary overage)
-  final int burstAllowance;
-
-  /// Per-conversation rate limit (optional)
-  final RateLimitPolicy? perConversation;
-
-  /// Per-user rate limit (optional)
-  final RateLimitPolicy? perUser;
-
-  /// Action when limit exceeded
-  final RateLimitAction action;
-
   const RateLimitPolicy({
     required this.maxRequests,
     required this.window,
@@ -70,6 +52,24 @@ class RateLimitPolicy {
         burstAllowance: 10,
       );
 
+  /// Maximum requests per window
+  final int maxRequests;
+
+  /// Time window duration
+  final Duration window;
+
+  /// Burst allowance (temporary overage)
+  final int burstAllowance;
+
+  /// Per-conversation rate limit (optional)
+  final RateLimitPolicy? perConversation;
+
+  /// Per-user rate limit (optional)
+  final RateLimitPolicy? perUser;
+
+  /// Action when limit exceeded
+  final RateLimitAction action;
+
   RateLimitPolicy copyWith({
     int? maxRequests,
     Duration? window,
@@ -92,15 +92,6 @@ class RateLimitPolicy {
 /// Result of a rate limit check.
 @immutable
 class RateLimitResult {
-  /// Whether the request is allowed
-  final bool allowed;
-
-  /// How long to wait before retrying
-  final Duration? retryAfter;
-
-  /// Remaining tokens in the bucket
-  final int? remainingTokens;
-
   const RateLimitResult({
     required this.allowed,
     this.retryAfter,
@@ -114,13 +105,22 @@ class RateLimitResult {
   /// Creates a limited result.
   factory RateLimitResult.limited({required Duration retryAfter}) =>
       RateLimitResult(allowed: false, retryAfter: retryAfter);
+
+  /// Whether the request is allowed
+  final bool allowed;
+
+  /// How long to wait before retrying
+  final Duration? retryAfter;
+
+  /// Remaining tokens in the bucket
+  final int? remainingTokens;
 }
 
 /// Exception thrown when rate limit is exceeded.
 class RateLimitExceeded implements Exception {
-  final Duration? retryAfter;
-
   const RateLimitExceeded([this.retryAfter]);
+
+  final Duration? retryAfter;
 
   @override
   String toString() => retryAfter != null
@@ -130,9 +130,9 @@ class RateLimitExceeded implements Exception {
 
 /// Exception thrown when request is queued due to rate limit.
 class RateLimitQueued implements Exception {
-  final Duration? retryAfter;
-
   const RateLimitQueued([this.retryAfter]);
+
+  final Duration? retryAfter;
 
   @override
   String toString() => 'RateLimitQueued';
@@ -140,19 +140,19 @@ class RateLimitQueued implements Exception {
 
 /// Token bucket for rate limiting.
 class _TokenBucket {
-  final int maxTokens;
-  final Duration refillPeriod;
-  final int burstAllowance;
-
-  int _tokens;
-  DateTime _lastRefill;
-
   _TokenBucket({
     required this.maxTokens,
     required this.refillPeriod,
     this.burstAllowance = 0,
   })  : _tokens = maxTokens + burstAllowance,
         _lastRefill = DateTime.now();
+
+  final int maxTokens;
+  final Duration refillPeriod;
+  final int burstAllowance;
+
+  int _tokens;
+  DateTime _lastRefill;
 
   RateLimitResult tryConsume() {
     _refill();
@@ -185,10 +185,10 @@ class _TokenBucket {
 
 /// Rate limiter using token bucket algorithm.
 class RateLimiter {
+  RateLimiter(this._policy);
+
   final RateLimitPolicy _policy;
   final Map<String, _TokenBucket> _buckets = {};
-
-  RateLimiter(this._policy);
 
   /// Check if request is allowed.
   Future<RateLimitResult> checkLimit({
@@ -244,7 +244,7 @@ class RateLimiter {
       switch (_policy.action) {
         case RateLimitAction.delay:
           if (result.retryAfter != null) {
-            await Future.delayed(result.retryAfter!);
+            await Future<void>.delayed(result.retryAfter!);
           }
           return acquire(conversationKey: conversationKey, userId: userId);
 

@@ -6,13 +6,16 @@ void main() {
     late InMemoryIdempotencyStore store;
     late IdempotencyGuard guard;
 
-    final conversation = ConversationKey(
-      channelType: 'slack',
-      tenantId: 'T123',
-      roomId: 'C456',
+    final channelIdentity = ChannelIdentity(
+      platform: 'slack',
+      channelId: 'T123',
     );
 
-    final identity = ChannelIdentity.user(id: 'U123');
+    final conversation = ConversationKey(
+      channel: channelIdentity,
+      conversationId: 'C456',
+      userId: 'U123',
+    );
 
     setUp(() {
       store = InMemoryIdempotencyStore();
@@ -21,11 +24,10 @@ void main() {
 
     test('processes new event successfully', () async {
       final event = ChannelEvent.message(
-        eventId: 'evt_123',
-        channelType: 'slack',
-        identity: identity,
+        id: 'evt_123',
         conversation: conversation,
         text: 'Test',
+        userId: 'U123',
       );
 
       var processorCalled = false;
@@ -47,11 +49,10 @@ void main() {
 
     test('returns cached result for duplicate event', () async {
       final event = ChannelEvent.message(
-        eventId: 'evt_123',
-        channelType: 'slack',
-        identity: identity,
+        id: 'evt_123',
         conversation: conversation,
         text: 'Test',
+        userId: 'U123',
       );
 
       var callCount = 0;
@@ -84,11 +85,10 @@ void main() {
 
     test('handles processor failure', () async {
       final event = ChannelEvent.message(
-        eventId: 'evt_fail',
-        channelType: 'slack',
-        identity: identity,
+        id: 'evt_fail',
         conversation: conversation,
         text: 'Test',
+        userId: 'U123',
       );
 
       final result = await guard.process(event, () async {
@@ -105,10 +105,14 @@ void main() {
   });
 
   group('IdempotencyResult', () {
+    final channelIdentity = ChannelIdentity(
+      platform: 'slack',
+      channelId: 'T123',
+    );
+
     final conversation = ConversationKey(
-      channelType: 'slack',
-      tenantId: 'T123',
-      roomId: 'C456',
+      channel: channelIdentity,
+      conversationId: 'C456',
     );
 
     test('success creates successful result', () {

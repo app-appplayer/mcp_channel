@@ -23,21 +23,6 @@ enum AttachmentType {
 /// File attachment for responses.
 @immutable
 class Attachment {
-  /// Attachment type
-  final AttachmentType type;
-
-  /// Display name
-  final String name;
-
-  /// URL for remote file
-  final String? url;
-
-  /// Binary data for upload
-  final Uint8List? data;
-
-  /// MIME type
-  final String? mimeType;
-
   const Attachment({
     required this.type,
     required this.name,
@@ -108,6 +93,33 @@ class Attachment {
     );
   }
 
+  factory Attachment.fromJson(Map<String, dynamic> json) {
+    return Attachment(
+      type: AttachmentType.values.firstWhere(
+        (e) => e.name == json['type'],
+        orElse: () => AttachmentType.file,
+      ),
+      name: json['name'] as String,
+      url: json['url'] as String?,
+      mimeType: json['mimeType'] as String?,
+    );
+  }
+
+  /// Attachment type
+  final AttachmentType type;
+
+  /// Display name
+  final String name;
+
+  /// URL for remote file
+  final String? url;
+
+  /// Binary data for upload
+  final Uint8List? data;
+
+  /// MIME type
+  final String? mimeType;
+
   Attachment copyWith({
     AttachmentType? type,
     String? name,
@@ -131,18 +143,6 @@ class Attachment {
         if (mimeType != null) 'mimeType': mimeType,
         // Note: data is not serialized to JSON
       };
-
-  factory Attachment.fromJson(Map<String, dynamic> json) {
-    return Attachment(
-      type: AttachmentType.values.firstWhere(
-        (e) => e.name == json['type'],
-        orElse: () => AttachmentType.file,
-      ),
-      name: json['name'] as String,
-      url: json['url'] as String?,
-      mimeType: json['mimeType'] as String?,
-    );
-  }
 
   @override
   bool operator ==(Object other) =>

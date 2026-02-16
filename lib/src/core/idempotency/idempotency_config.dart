@@ -1,5 +1,12 @@
 /// Configuration for idempotency handling.
 class IdempotencyConfig {
+  const IdempotencyConfig({
+    this.recordTtl = const Duration(hours: 24),
+    this.lockTimeout = const Duration(minutes: 5),
+    this.retryFailed = false,
+    this.cleanupInterval = const Duration(hours: 1),
+  });
+
   /// How long to keep completed records
   final Duration recordTtl;
 
@@ -11,13 +18,6 @@ class IdempotencyConfig {
 
   /// Cleanup interval
   final Duration cleanupInterval;
-
-  const IdempotencyConfig({
-    this.recordTtl = const Duration(hours: 24),
-    this.lockTimeout = const Duration(minutes: 5),
-    this.retryFailed = false,
-    this.cleanupInterval = const Duration(hours: 1),
-  });
 
   IdempotencyConfig copyWith({
     Duration? recordTtl,

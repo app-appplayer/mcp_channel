@@ -27,12 +27,6 @@ enum ContentBlockType {
 /// Building block for rich content.
 @immutable
 class ContentBlock {
-  /// Block type
-  final ContentBlockType type;
-
-  /// Type-specific content
-  final Map<String, dynamic> content;
-
   const ContentBlock({
     required this.type,
     required this.content,
@@ -132,6 +126,22 @@ class ContentBlock {
     );
   }
 
+  factory ContentBlock.fromJson(Map<String, dynamic> json) {
+    return ContentBlock(
+      type: ContentBlockType.values.firstWhere(
+        (e) => e.name == json['type'],
+        orElse: () => ContentBlockType.section,
+      ),
+      content: Map<String, dynamic>.from(json['content'] as Map),
+    );
+  }
+
+  /// Block type
+  final ContentBlockType type;
+
+  /// Type-specific content
+  final Map<String, dynamic> content;
+
   ContentBlock copyWith({
     ContentBlockType? type,
     Map<String, dynamic>? content,
@@ -146,16 +156,6 @@ class ContentBlock {
         'type': type.name,
         'content': content,
       };
-
-  factory ContentBlock.fromJson(Map<String, dynamic> json) {
-    return ContentBlock(
-      type: ContentBlockType.values.firstWhere(
-        (e) => e.name == json['type'],
-        orElse: () => ContentBlockType.section,
-      ),
-      content: Map<String, dynamic>.from(json['content'] as Map),
-    );
-  }
 
   @override
   bool operator ==(Object other) =>
@@ -195,27 +195,6 @@ enum ActionElementType {
 /// Interactive element for buttons and menus.
 @immutable
 class ActionElement {
-  /// Element type
-  final ActionElementType type;
-
-  /// Unique action identifier
-  final String actionId;
-
-  /// Button/label text
-  final String? text;
-
-  /// Style (primary, danger)
-  final String? style;
-
-  /// Action value
-  final String? value;
-
-  /// Options for select
-  final List<SelectOption>? options;
-
-  /// Confirmation dialog
-  final ConfirmDialog? confirm;
-
   const ActionElement({
     required this.type,
     required this.actionId,
@@ -304,6 +283,48 @@ class ActionElement {
     );
   }
 
+  factory ActionElement.fromJson(Map<String, dynamic> json) {
+    return ActionElement(
+      type: ActionElementType.values.firstWhere(
+        (e) => e.name == json['type'],
+        orElse: () => ActionElementType.button,
+      ),
+      actionId: json['actionId'] as String,
+      text: json['text'] as String?,
+      style: json['style'] as String?,
+      value: json['value'] as String?,
+      options: json['options'] != null
+          ? (json['options'] as List)
+              .map((o) => SelectOption.fromJson(o as Map<String, dynamic>))
+              .toList()
+          : null,
+      confirm: json['confirm'] != null
+          ? ConfirmDialog.fromJson(json['confirm'] as Map<String, dynamic>)
+          : null,
+    );
+  }
+
+  /// Element type
+  final ActionElementType type;
+
+  /// Unique action identifier
+  final String actionId;
+
+  /// Button/label text
+  final String? text;
+
+  /// Style (primary, danger)
+  final String? style;
+
+  /// Action value
+  final String? value;
+
+  /// Options for select
+  final List<SelectOption>? options;
+
+  /// Confirmation dialog
+  final ConfirmDialog? confirm;
+
   ActionElement copyWith({
     ActionElementType? type,
     String? actionId,
@@ -335,27 +356,6 @@ class ActionElement {
         if (confirm != null) 'confirm': confirm!.toJson(),
       };
 
-  factory ActionElement.fromJson(Map<String, dynamic> json) {
-    return ActionElement(
-      type: ActionElementType.values.firstWhere(
-        (e) => e.name == json['type'],
-        orElse: () => ActionElementType.button,
-      ),
-      actionId: json['actionId'] as String,
-      text: json['text'] as String?,
-      style: json['style'] as String?,
-      value: json['value'] as String?,
-      options: json['options'] != null
-          ? (json['options'] as List)
-              .map((o) => SelectOption.fromJson(o as Map<String, dynamic>))
-              .toList()
-          : null,
-      confirm: json['confirm'] != null
-          ? ConfirmDialog.fromJson(json['confirm'] as Map<String, dynamic>)
-          : null,
-    );
-  }
-
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -374,6 +374,20 @@ class ActionElement {
 /// Option for select menus.
 @immutable
 class SelectOption {
+  const SelectOption({
+    required this.text,
+    required this.value,
+    this.description,
+  });
+
+  factory SelectOption.fromJson(Map<String, dynamic> json) {
+    return SelectOption(
+      text: json['text'] as String,
+      value: json['value'] as String,
+      description: json['description'] as String?,
+    );
+  }
+
   /// Display text
   final String text;
 
@@ -383,25 +397,11 @@ class SelectOption {
   /// Optional description
   final String? description;
 
-  const SelectOption({
-    required this.text,
-    required this.value,
-    this.description,
-  });
-
   Map<String, dynamic> toJson() => {
         'text': text,
         'value': value,
         if (description != null) 'description': description,
       };
-
-  factory SelectOption.fromJson(Map<String, dynamic> json) {
-    return SelectOption(
-      text: json['text'] as String,
-      value: json['value'] as String,
-      description: json['description'] as String?,
-    );
-  }
 
   @override
   bool operator ==(Object other) =>
@@ -420,6 +420,22 @@ class SelectOption {
 /// Confirmation dialog for destructive actions.
 @immutable
 class ConfirmDialog {
+  const ConfirmDialog({
+    required this.title,
+    required this.text,
+    this.confirm = 'Confirm',
+    this.deny = 'Cancel',
+  });
+
+  factory ConfirmDialog.fromJson(Map<String, dynamic> json) {
+    return ConfirmDialog(
+      title: json['title'] as String,
+      text: json['text'] as String,
+      confirm: json['confirm'] as String? ?? 'Confirm',
+      deny: json['deny'] as String? ?? 'Cancel',
+    );
+  }
+
   /// Dialog title
   final String title;
 
@@ -432,28 +448,12 @@ class ConfirmDialog {
   /// Deny/cancel button text
   final String deny;
 
-  const ConfirmDialog({
-    required this.title,
-    required this.text,
-    this.confirm = 'Confirm',
-    this.deny = 'Cancel',
-  });
-
   Map<String, dynamic> toJson() => {
         'title': title,
         'text': text,
         'confirm': confirm,
         'deny': deny,
       };
-
-  factory ConfirmDialog.fromJson(Map<String, dynamic> json) {
-    return ConfirmDialog(
-      title: json['title'] as String,
-      text: json['text'] as String,
-      confirm: json['confirm'] as String? ?? 'Confirm',
-      deny: json['deny'] as String? ?? 'Cancel',
-    );
-  }
 
   @override
   bool operator ==(Object other) =>

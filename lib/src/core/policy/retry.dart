@@ -14,15 +14,15 @@ abstract class BackoffStrategy {
 
 /// Exponential backoff strategy.
 class ExponentialBackoff extends BackoffStrategy {
-  final Duration initialDelay;
-  final Duration maxDelay;
-  final double multiplier;
-
   const ExponentialBackoff({
     this.initialDelay = const Duration(milliseconds: 500),
     this.maxDelay = const Duration(seconds: 30),
     this.multiplier = 2.0,
   });
+
+  final Duration initialDelay;
+  final Duration maxDelay;
+  final double multiplier;
 
   @override
   Duration getDelay(int attempt) {
@@ -35,15 +35,15 @@ class ExponentialBackoff extends BackoffStrategy {
 
 /// Linear backoff strategy.
 class LinearBackoff extends BackoffStrategy {
-  final Duration initialDelay;
-  final Duration increment;
-  final Duration maxDelay;
-
   const LinearBackoff({
     this.initialDelay = const Duration(seconds: 1),
     this.increment = const Duration(seconds: 1),
     this.maxDelay = const Duration(seconds: 30),
   });
+
+  final Duration initialDelay;
+  final Duration increment;
+  final Duration maxDelay;
 
   @override
   Duration getDelay(int attempt) {
@@ -57,9 +57,9 @@ class LinearBackoff extends BackoffStrategy {
 
 /// Fixed backoff strategy.
 class FixedBackoff extends BackoffStrategy {
-  final Duration delay;
-
   const FixedBackoff({this.delay = const Duration(seconds: 1)});
+
+  final Duration delay;
 
   @override
   Duration getDelay(int attempt) => delay;
@@ -68,21 +68,6 @@ class FixedBackoff extends BackoffStrategy {
 /// Retry policy configuration.
 @immutable
 class RetryPolicy {
-  /// Maximum retry attempts
-  final int maxAttempts;
-
-  /// Backoff strategy
-  final BackoffStrategy backoff;
-
-  /// Retryable error codes
-  final Set<String> retryableErrors;
-
-  /// Maximum total retry duration
-  final Duration? maxDuration;
-
-  /// Jitter factor (0.0 - 1.0) for randomizing delays
-  final double jitter;
-
   const RetryPolicy({
     this.maxAttempts = 3,
     this.backoff = const ExponentialBackoff(),
@@ -110,6 +95,21 @@ class RetryPolicy {
         jitter: 0.2,
       );
 
+  /// Maximum retry attempts
+  final int maxAttempts;
+
+  /// Backoff strategy
+  final BackoffStrategy backoff;
+
+  /// Retryable error codes
+  final Set<String> retryableErrors;
+
+  /// Maximum total retry duration
+  final Duration? maxDuration;
+
+  /// Jitter factor (0.0 - 1.0) for randomizing delays
+  final double jitter;
+
   RetryPolicy copyWith({
     int? maxAttempts,
     BackoffStrategy? backoff,
@@ -129,10 +129,10 @@ class RetryPolicy {
 
 /// Retrier with configurable policy.
 class Retrier {
+  Retrier(this._policy);
+
   final RetryPolicy _policy;
   final Random _random = Random();
-
-  Retrier(this._policy);
 
   /// Execute operation with retry logic.
   Future<T> execute<T>(
@@ -157,7 +157,7 @@ class Retrier {
         final baseDelay = _policy.backoff.getDelay(attempt - 1);
         final jitteredDelay = _applyJitter(baseDelay);
 
-        await Future.delayed(jitteredDelay);
+        await Future<void>.delayed(jitteredDelay);
       }
     }
   }

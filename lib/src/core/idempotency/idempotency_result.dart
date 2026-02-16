@@ -1,22 +1,9 @@
+import 'package:mcp_bundle/ports.dart';
 import 'package:meta/meta.dart';
-
-import '../types/channel_response.dart';
 
 /// Result of idempotent event processing.
 @immutable
 class IdempotencyResult {
-  /// Whether processing was successful
-  final bool success;
-
-  /// Response that was sent (if any)
-  final ChannelResponse? response;
-
-  /// Error information (if failed)
-  final String? error;
-
-  /// Custom result data
-  final Map<String, dynamic>? data;
-
   const IdempotencyResult({
     required this.success,
     this.response,
@@ -48,13 +35,6 @@ class IdempotencyResult {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        'success': success,
-        if (response != null) 'response': response!.toJson(),
-        if (error != null) 'error': error,
-        if (data != null) 'data': data,
-      };
-
   factory IdempotencyResult.fromJson(Map<String, dynamic> json) {
     return IdempotencyResult(
       success: json['success'] as bool,
@@ -65,6 +45,25 @@ class IdempotencyResult {
       data: json['data'] as Map<String, dynamic>?,
     );
   }
+
+  /// Whether processing was successful
+  final bool success;
+
+  /// Response that was sent (if any)
+  final ChannelResponse? response;
+
+  /// Error information (if failed)
+  final String? error;
+
+  /// Custom result data
+  final Map<String, dynamic>? data;
+
+  Map<String, dynamic> toJson() => {
+        'success': success,
+        if (response != null) 'response': response!.toJson(),
+        if (error != null) 'error': error,
+        if (data != null) 'data': data,
+      };
 
   @override
   String toString() => success

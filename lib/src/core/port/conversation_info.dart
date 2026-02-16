@@ -1,10 +1,35 @@
+import 'package:mcp_bundle/ports.dart';
 import 'package:meta/meta.dart';
-
-import '../types/conversation_key.dart';
 
 /// Information about a conversation.
 @immutable
 class ConversationInfo {
+  const ConversationInfo({
+    required this.key,
+    this.name,
+    this.topic,
+    this.isPrivate = false,
+    this.isGroup = false,
+    this.memberCount,
+    this.createdAt,
+    this.platformData,
+  });
+
+  factory ConversationInfo.fromJson(Map<String, dynamic> json) {
+    return ConversationInfo(
+      key: ConversationKey.fromJson(json['key'] as Map<String, dynamic>),
+      name: json['name'] as String?,
+      topic: json['topic'] as String?,
+      isPrivate: json['isPrivate'] as bool? ?? false,
+      isGroup: json['isGroup'] as bool? ?? false,
+      memberCount: json['memberCount'] as int?,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : null,
+      platformData: json['platformData'] as Map<String, dynamic>?,
+    );
+  }
+
   /// Conversation key
   final ConversationKey key;
 
@@ -28,17 +53,6 @@ class ConversationInfo {
 
   /// Platform-specific data
   final Map<String, dynamic>? platformData;
-
-  const ConversationInfo({
-    required this.key,
-    this.name,
-    this.topic,
-    this.isPrivate = false,
-    this.isGroup = false,
-    this.memberCount,
-    this.createdAt,
-    this.platformData,
-  });
 
   ConversationInfo copyWith({
     ConversationKey? key,
@@ -73,21 +87,6 @@ class ConversationInfo {
         if (platformData != null) 'platformData': platformData,
       };
 
-  factory ConversationInfo.fromJson(Map<String, dynamic> json) {
-    return ConversationInfo(
-      key: ConversationKey.fromJson(json['key'] as Map<String, dynamic>),
-      name: json['name'] as String?,
-      topic: json['topic'] as String?,
-      isPrivate: json['isPrivate'] as bool? ?? false,
-      isGroup: json['isGroup'] as bool? ?? false,
-      memberCount: json['memberCount'] as int?,
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'] as String)
-          : null,
-      platformData: json['platformData'] as Map<String, dynamic>?,
-    );
-  }
-
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -100,5 +99,5 @@ class ConversationInfo {
 
   @override
   String toString() =>
-      'ConversationInfo(key: ${key.key}, name: $name, isPrivate: $isPrivate)';
+      'ConversationInfo(key: ${key.conversationId}, name: $name, isPrivate: $isPrivate)';
 }
