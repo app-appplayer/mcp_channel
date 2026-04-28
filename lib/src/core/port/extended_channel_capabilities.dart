@@ -5,21 +5,21 @@ import '../types/attachment.dart';
 
 /// Extended capabilities for messaging platforms.
 ///
-/// Adds platform-specific features beyond the base [ChannelCapabilities]
-/// contract from mcp_bundle.
+/// Extends the base [ChannelCapabilities] from mcp_bundle and adds
+/// platform-specific features like files, buttons, menus, modals, etc.
 @immutable
-class ExtendedChannelCapabilities {
+class ExtendedChannelCapabilities extends ChannelCapabilities {
   const ExtendedChannelCapabilities({
-    // Base capabilities
-    this.text = true,
-    this.richMessages = false,
-    this.attachments = false,
-    this.reactions = false,
-    this.threads = false,
-    this.editing = false,
-    this.deleting = false,
-    this.typingIndicator = false,
-    this.maxMessageLength,
+    // Base capabilities via super
+    super.text = true,
+    super.richMessages = false,
+    super.attachments = false,
+    super.reactions = false,
+    super.threads = false,
+    super.editing = false,
+    super.deleting = false,
+    super.typingIndicator = false,
+    super.maxMessageLength,
     // Extended capabilities
     this.supportsFiles = false,
     this.maxFileSize,
@@ -72,7 +72,7 @@ class ExtendedChannelCapabilities {
 
   /// Creates capabilities for Slack.
   factory ExtendedChannelCapabilities.slack() {
-    return ExtendedChannelCapabilities(
+    return const ExtendedChannelCapabilities(
       text: true,
       richMessages: true,
       attachments: true,
@@ -80,7 +80,7 @@ class ExtendedChannelCapabilities {
       threads: true,
       editing: true,
       deleting: true,
-      typingIndicator: true,
+      typingIndicator: false,
       maxMessageLength: 40000,
       supportsFiles: true,
       maxFileSize: 1024 * 1024 * 1024, // 1GB
@@ -90,19 +90,25 @@ class ExtendedChannelCapabilities {
       supportsEphemeral: true,
       supportsCommands: true,
       maxBlocksPerMessage: 50,
-      supportedAttachments: const {
+      supportedAttachments: {
         AttachmentType.file,
         AttachmentType.image,
         AttachmentType.video,
         AttachmentType.audio,
         AttachmentType.document,
       },
+      custom: {
+        'supportsBlockKit': true,
+        'supportsWorkflows': true,
+        'supportsShortcuts': true,
+        'supportsHomeTab': true,
+      },
     );
   }
 
   /// Creates capabilities for Discord.
   factory ExtendedChannelCapabilities.discord() {
-    return ExtendedChannelCapabilities(
+    return const ExtendedChannelCapabilities(
       text: true,
       richMessages: true,
       attachments: true,
@@ -120,7 +126,7 @@ class ExtendedChannelCapabilities {
       supportsEphemeral: true,
       supportsCommands: true,
       maxBlocksPerMessage: 10, // max embeds
-      supportedAttachments: const {
+      supportedAttachments: {
         AttachmentType.file,
         AttachmentType.image,
         AttachmentType.video,
@@ -132,9 +138,9 @@ class ExtendedChannelCapabilities {
 
   /// Creates capabilities for Telegram.
   factory ExtendedChannelCapabilities.telegram() {
-    return ExtendedChannelCapabilities(
+    return const ExtendedChannelCapabilities(
       text: true,
-      richMessages: true,
+      richMessages: false,
       attachments: true,
       reactions: true,
       threads: true,
@@ -149,7 +155,7 @@ class ExtendedChannelCapabilities {
       supportsModals: false,
       supportsEphemeral: false,
       supportsCommands: true,
-      supportedAttachments: const {
+      supportedAttachments: {
         AttachmentType.file,
         AttachmentType.image,
         AttachmentType.video,
@@ -161,7 +167,7 @@ class ExtendedChannelCapabilities {
 
   /// Creates capabilities for Microsoft Teams.
   factory ExtendedChannelCapabilities.teams() {
-    return ExtendedChannelCapabilities(
+    return const ExtendedChannelCapabilities(
       text: true,
       richMessages: true,
       attachments: true,
@@ -172,17 +178,161 @@ class ExtendedChannelCapabilities {
       typingIndicator: true,
       maxMessageLength: 28000,
       supportsFiles: true,
-      maxFileSize: 250 * 1024 * 1024, // 250MB
+      maxFileSize: 25 * 1024 * 1024, // 25MB
       supportsButtons: true,
       supportsMenus: true,
       supportsModals: true,
       supportsEphemeral: false,
       supportsCommands: true,
-      supportedAttachments: const {
+      supportedAttachments: {
+        AttachmentType.file,
+        AttachmentType.image,
+      },
+      custom: {
+        'supportsAdaptiveCards': true,
+        'supportsTaskModules': true,
+        'supportsMeetings': true,
+        'supportsMessageExtensions': true,
+      },
+    );
+  }
+
+  /// Creates capabilities for Email.
+  factory ExtendedChannelCapabilities.email() {
+    return const ExtendedChannelCapabilities(
+      text: true,
+      richMessages: false,
+      attachments: true,
+      reactions: false,
+      threads: true,
+      editing: false,
+      deleting: false,
+      typingIndicator: false,
+      supportsFiles: true,
+      maxFileSize: 25 * 1024 * 1024, // 25MB typical
+      supportsButtons: false,
+      supportsMenus: false,
+      supportsModals: false,
+      supportsEphemeral: false,
+      supportsCommands: true,
+      supportedAttachments: {
+        AttachmentType.file,
+        AttachmentType.image,
+        AttachmentType.document,
+      },
+      custom: {
+        'supportsHtml': true,
+        'supportsAsync': true,
+        'avgResponseTime': 'minutes to hours',
+      },
+    );
+  }
+
+  /// Creates capabilities for Webhook.
+  factory ExtendedChannelCapabilities.webhook() {
+    return const ExtendedChannelCapabilities(
+      text: true,
+      richMessages: true,
+      attachments: false,
+      reactions: false,
+      threads: false,
+      editing: false,
+      deleting: false,
+      typingIndicator: false,
+      supportsFiles: false,
+      supportsButtons: true,
+      supportsMenus: false,
+      supportsModals: false,
+      supportsEphemeral: false,
+      supportsCommands: true,
+    );
+  }
+
+  /// Creates capabilities for WeCom.
+  factory ExtendedChannelCapabilities.wecom() {
+    return const ExtendedChannelCapabilities(
+      text: true,
+      richMessages: true,
+      attachments: true,
+      reactions: false,
+      threads: false,
+      editing: false,
+      deleting: true,
+      typingIndicator: false,
+      maxMessageLength: 2048,
+      supportsFiles: true,
+      maxFileSize: 20 * 1024 * 1024, // 20MB
+      supportsButtons: true,
+      supportsMenus: true,
+      supportsModals: false,
+      supportsEphemeral: false,
+      supportsCommands: true,
+      supportedAttachments: {
         AttachmentType.file,
         AttachmentType.image,
         AttachmentType.video,
-        AttachmentType.document,
+        AttachmentType.audio,
+      },
+      custom: {
+        'supportsMarkdown': true,
+        'supportsTextCard': true,
+        'supportsNewsCard': true,
+        'supportsInteractiveCard': true,
+      },
+    );
+  }
+
+  /// Creates capabilities for YouTube.
+  factory ExtendedChannelCapabilities.youtube() {
+    return const ExtendedChannelCapabilities(
+      text: true,
+      richMessages: false,
+      attachments: false,
+      reactions: false,
+      threads: true,
+      editing: true,
+      deleting: true,
+      typingIndicator: false,
+      maxMessageLength: 10000,
+      supportsFiles: false,
+      supportsButtons: false,
+      supportsMenus: false,
+      supportsModals: false,
+      supportsEphemeral: false,
+      supportsCommands: true,
+      supportedAttachments: {},
+      custom: {
+        'isPublic': true,
+        'requiresOAuth': true,
+        'quotaLimited': true,
+        'liveChatMaxLength': 200,
+      },
+    );
+  }
+
+  /// Creates capabilities for Kakao.
+  factory ExtendedChannelCapabilities.kakao() {
+    return const ExtendedChannelCapabilities(
+      text: true,
+      richMessages: false,
+      attachments: false,
+      reactions: false,
+      threads: false,
+      editing: false,
+      deleting: false,
+      typingIndicator: false,
+      maxMessageLength: 1000,
+      supportsFiles: false,
+      supportsButtons: true,
+      supportsMenus: false,
+      supportsModals: false,
+      supportsEphemeral: false,
+      supportsCommands: false,
+      supportedAttachments: {},
+      custom: {
+        'templateBased': true,
+        'requiresApproval': true,
+        'userInitiatedOnly': true,
       },
     );
   }
@@ -240,37 +390,6 @@ class ExtendedChannelCapabilities {
   }
 
   // =========================================================================
-  // Base capabilities (mapped to mcp_bundle ChannelCapabilities)
-  // =========================================================================
-
-  /// Supports text messages
-  final bool text;
-
-  /// Supports rich/block messages
-  final bool richMessages;
-
-  /// Supports attachments
-  final bool attachments;
-
-  /// Supports reactions
-  final bool reactions;
-
-  /// Supports threaded conversations
-  final bool threads;
-
-  /// Supports message editing
-  final bool editing;
-
-  /// Supports message deletion
-  final bool deleting;
-
-  /// Supports typing indicators
-  final bool typingIndicator;
-
-  /// Maximum message length
-  final int? maxMessageLength;
-
-  // =========================================================================
   // Extended capabilities (mcp_channel specific)
   // =========================================================================
 
@@ -304,7 +423,7 @@ class ExtendedChannelCapabilities {
   /// Custom capabilities (platform-specific)
   final Map<String, dynamic>? custom;
 
-  /// Converts to base ChannelCapabilities.
+  /// Converts to base ChannelCapabilities (explicit downcast).
   ChannelCapabilities toBase() {
     return ChannelCapabilities(
       text: text,
@@ -363,6 +482,7 @@ class ExtendedChannelCapabilities {
     );
   }
 
+  @override
   Map<String, dynamic> toJson() => {
         'text': text,
         'richMessages': richMessages,

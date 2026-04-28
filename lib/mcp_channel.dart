@@ -75,5 +75,11 @@ export 'src/core/policy/policy.dart';
 // Integration interfaces (for connecting with mcp_llm, mcp_server, etc.)
 export 'src/core/integration/integration.dart';
 
+// Observability (metrics, logging, tracing, health checks)
+export 'src/core/observability/observability.dart';
+
+// Security (validation, sanitization, PII, audit)
+export 'src/core/security/security.dart';
+
 // Connectors
 export 'src/connectors/connectors.dart';

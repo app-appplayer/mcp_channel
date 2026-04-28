@@ -1,5 +1,6 @@
-import 'package:mcp_bundle/ports.dart';
 import 'package:meta/meta.dart';
+
+import '../types/channel_identity_info.dart';
 
 /// Authenticated identity with roles and permissions.
 @immutable
@@ -15,7 +16,7 @@ class Principal {
 
   /// Creates a principal with basic role.
   factory Principal.basic({
-    required ChannelIdentity identity,
+    required ChannelIdentityInfo identity,
     required String tenantId,
     Set<String>? permissions,
     DateTime? expiresAt,
@@ -32,7 +33,7 @@ class Principal {
 
   /// Creates an admin principal.
   factory Principal.admin({
-    required ChannelIdentity identity,
+    required ChannelIdentityInfo identity,
     required String tenantId,
     Set<String>? permissions,
     DateTime? expiresAt,
@@ -49,8 +50,8 @@ class Principal {
 
   factory Principal.fromJson(Map<String, dynamic> json) {
     return Principal(
-      identity:
-          ChannelIdentity.fromJson(json['identity'] as Map<String, dynamic>),
+      identity: ChannelIdentityInfo.fromJson(
+          json['identity'] as Map<String, dynamic>),
       tenantId: json['tenantId'] as String,
       roles: Set<String>.from(json['roles'] as List),
       permissions: Set<String>.from(json['permissions'] as List),
@@ -61,8 +62,8 @@ class Principal {
     );
   }
 
-  /// Channel identity
-  final ChannelIdentity identity;
+  /// Channel identity information
+  final ChannelIdentityInfo identity;
 
   /// Tenant/workspace ID
   final String tenantId;
@@ -98,7 +99,7 @@ class Principal {
   bool get isAdmin => hasRole('admin');
 
   Principal copyWith({
-    ChannelIdentity? identity,
+    ChannelIdentityInfo? identity,
     String? tenantId,
     Set<String>? roles,
     Set<String>? permissions,
@@ -137,5 +138,5 @@ class Principal {
 
   @override
   String toString() =>
-      'Principal(identity: ${identity.channelId}, tenantId: $tenantId, roles: $roles)';
+      'Principal(identity: ${identity.id}, tenantId: $tenantId, roles: $roles)';
 }

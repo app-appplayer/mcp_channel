@@ -1,6 +1,8 @@
 /// Session management for MCP Channel.
 library;
 
+export 'concurrent_modification_exception.dart';
+export 'conversation_lock.dart';
 export 'message_role.dart';
 export 'principal.dart';
 export 'session.dart';

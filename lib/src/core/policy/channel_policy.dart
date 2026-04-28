@@ -1,6 +1,8 @@
 import 'package:meta/meta.dart';
 
 import 'circuit_breaker.dart';
+import 'dead_letter_queue.dart';
+import 'platform_rate_limit_feedback.dart';
 import 'rate_limit.dart';
 import 'retry.dart';
 import 'timeout.dart';
@@ -27,7 +29,7 @@ class ChannelPolicy {
           recoveryTimeout: Duration(seconds: 60),
         ),
         timeout: const TimeoutPolicy(
-          requestTimeout: Duration(seconds: 3),
+          requestTimeout: Duration(seconds: 30),
         ),
       );
 
@@ -56,6 +58,65 @@ class ChannelPolicy {
         retry: RetryPolicy(maxAttempts: 3),
         circuitBreaker: CircuitBreakerPolicy(),
         timeout: TimeoutPolicy(),
+      );
+
+  /// Email platform defaults.
+  factory ChannelPolicy.email() => const ChannelPolicy(
+        rateLimit: RateLimitPolicy(
+          maxRequests: 10,
+          window: Duration(seconds: 1),
+        ),
+        retry: RetryPolicy(maxAttempts: 3),
+        circuitBreaker: CircuitBreakerPolicy(),
+        timeout: TimeoutPolicy(
+          requestTimeout: Duration(seconds: 60),
+        ),
+      );
+
+  /// Webhook platform defaults.
+  factory ChannelPolicy.webhook() => const ChannelPolicy(
+        rateLimit: RateLimitPolicy(
+          maxRequests: 100,
+          window: Duration(seconds: 1),
+        ),
+        retry: RetryPolicy(maxAttempts: 3),
+        circuitBreaker: CircuitBreakerPolicy(),
+        timeout: TimeoutPolicy(),
+      );
+
+  /// WeCom platform defaults.
+  factory ChannelPolicy.wecom() => const ChannelPolicy(
+        rateLimit: RateLimitPolicy(
+          maxRequests: 200,
+          window: Duration(minutes: 1),
+        ),
+        retry: RetryPolicy(maxAttempts: 3),
+        circuitBreaker: CircuitBreakerPolicy(),
+        timeout: TimeoutPolicy(),
+      );
+
+  /// YouTube platform defaults.
+  factory ChannelPolicy.youtube() => const ChannelPolicy(
+        rateLimit: RateLimitPolicy(
+          maxRequests: 5,
+          window: Duration(seconds: 1),
+        ),
+        retry: RetryPolicy(maxAttempts: 3),
+        circuitBreaker: CircuitBreakerPolicy(),
+        timeout: TimeoutPolicy(),
+      );
+
+  /// Kakao platform defaults.
+  factory ChannelPolicy.kakao() => const ChannelPolicy(
+        rateLimit: RateLimitPolicy(
+          maxRequests: 30,
+          window: Duration(seconds: 1),
+        ),
+        retry: RetryPolicy(maxAttempts: 0),
+        circuitBreaker: CircuitBreakerPolicy(),
+        timeout: TimeoutPolicy(
+          requestTimeout: Duration(seconds: 5),
+        ),
       );
 
   /// Rate limiting configuration
@@ -87,17 +148,27 @@ class ChannelPolicy {
 
 /// Combined policy executor applying all policies.
 class PolicyExecutor {
-  PolicyExecutor(this.policy, String channelName)
-      : _rateLimiter = RateLimiter(policy.rateLimit),
-        _retrier = Retrier(policy.retry),
-        _circuitBreaker = CircuitBreaker(channelName, policy.circuitBreaker),
-        _timeoutExecutor = TimeoutExecutor(policy.timeout);
+  PolicyExecutor(
+    this._policy,
+    String channelName, {
+    this.deadLetterQueue,
+    this.onFailure,
+  })  : _rateLimiter = RateLimiter(_policy.rateLimit),
+        _retrier = Retrier(_policy.retry),
+        _circuitBreaker = CircuitBreaker(channelName, _policy.circuitBreaker),
+        _timeoutExecutor = TimeoutExecutor(_policy.timeout);
 
-  final ChannelPolicy policy;
+  final ChannelPolicy _policy;
   final RateLimiter _rateLimiter;
   final Retrier _retrier;
   final CircuitBreaker _circuitBreaker;
   final TimeoutExecutor _timeoutExecutor;
+
+  /// Optional dead letter queue for storing exhausted failures.
+  final DeadLetterQueue? deadLetterQueue;
+
+  /// Optional callback when an event fails all retries.
+  final FailureHandler? onFailure;
 
   /// Get circuit breaker state.
   CircuitState get circuitState => _circuitBreaker.state;
@@ -110,66 +181,57 @@ class PolicyExecutor {
     Future<T> Function() operation, {
     String? conversationKey,
     String? userId,
+    String? eventId,
+    Map<String, dynamic>? eventData,
   }) async {
-    // Check circuit breaker
-    if (!_circuitBreaker.isAllowed) {
-      throw CircuitOpenException(_circuitBreaker.name);
-    }
+    try {
+      // 1. Check circuit breaker
+      if (!_circuitBreaker.isAllowed) {
+        throw CircuitOpenException(_circuitBreaker.name);
+      }
 
-    // Apply timeout
-    return await _timeoutExecutor.withOperationTimeout(() async {
-      // Apply retry
-      return await _retrier.execute(() async {
-        // Apply rate limit
-        await _rateLimiter.acquire(
-          conversationKey: conversationKey,
-          userId: userId,
-        );
-
-        // Execute with circuit breaker tracking
-        return await _circuitBreaker.execute(operation);
-      });
-    });
-  }
-
-  /// Execute without rate limiting.
-  Future<T> executeWithoutRateLimit<T>(
-    Future<T> Function() operation,
-  ) async {
-    if (!_circuitBreaker.isAllowed) {
-      throw CircuitOpenException(_circuitBreaker.name);
-    }
-
-    return await _timeoutExecutor.withOperationTimeout(() async {
-      return await _retrier.execute(() async {
-        return await _circuitBreaker.execute(operation);
-      });
-    });
-  }
-
-  /// Execute with custom timeout.
-  Future<T> executeWithTimeout<T>(
-    Future<T> Function() operation,
-    Duration timeout, {
-    String? conversationKey,
-    String? userId,
-  }) async {
-    if (!_circuitBreaker.isAllowed) {
-      throw CircuitOpenException(_circuitBreaker.name);
-    }
-
-    return await _timeoutExecutor.withTimeout(
-      () async {
-        return await _retrier.execute(() async {
+      // 2. Apply timeout
+      return _withTimeout(() async {
+        // 3. Apply retry
+        return _retrier.execute(() async {
+          // 4. Apply rate limit
           await _rateLimiter.acquire(
             conversationKey: conversationKey,
             userId: userId,
           );
-          return await _circuitBreaker.execute(operation);
+
+          // Execute with circuit breaker tracking
+          return _circuitBreaker.execute(operation);
         });
-      },
-      timeout,
-    );
+      });
+    } catch (error, stackTrace) {
+      // All retries exhausted -- record to DLQ
+      if (deadLetterQueue != null && eventId != null) {
+        final record = FailureRecord(
+          eventId: eventId,
+          event: eventData ?? {},
+          error: error.toString(),
+          stackTrace: stackTrace.toString(),
+          failedAt: DateTime.now(),
+          attemptCount: _policy.retry.maxAttempts,
+          conversationKey: conversationKey,
+          userId: userId,
+        );
+
+        await deadLetterQueue!.enqueue(record);
+        await onFailure?.call(record);
+      }
+      rethrow;
+    }
+  }
+
+  Future<T> _withTimeout<T>(Future<T> Function() operation) {
+    return _timeoutExecutor.withOperationTimeout(operation);
+  }
+
+  /// Update rate limiter from platform response feedback.
+  void updateFromResponse(PlatformRateLimitFeedback feedback) {
+    _rateLimiter.updateFromResponse(feedback);
   }
 
   /// Force open the circuit breaker.

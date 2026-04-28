@@ -1,10 +1,9 @@
 name: mcp_channel
 description: Unified channel abstraction layer for messaging platforms (Slack, Telegram, Discord, etc.). Provides platform-agnostic messaging with idempotency, session management, and policy enforcement.
-version: 0.1.0
+version: 0.2.0
 homepage: https://app-appplayer.github.io/makemind
 repository: https://github.com/app-appplayer/mcp_channel
 issue_tracker: https://github.com/app-appplayer/mcp_channel/issues
-documentation: https://github.com/app-appplayer/mcp_channel/wiki
 
 topics:
   - messaging
@@ -18,7 +17,7 @@ environment:
 
 dependencies:
   # MCP ecosystem base contracts
-  mcp_bundle: ^0.2.0
+  mcp_bundle: ^0.3.0
 
   # Core dependencies
   meta: ^1.15.0
@@ -32,6 +31,9 @@ dependencies:
 
   # Cryptography for signature verification
   crypto: ^3.0.6
+
+  # AES encryption/decryption for WeCom message handling
+  encrypt: ^5.0.3
 
 dev_dependencies:
   lints: ^5.0.0

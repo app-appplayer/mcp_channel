@@ -10,7 +10,11 @@
 /// Developers choose what to integrate.
 library;
 
+export 'agentic_response_generator.dart';
 export 'channel_handler.dart';
+export 'error_handler.dart';
+export 'event_middleware.dart';
 export 'message_processor.dart';
 export 'response_generator.dart';
+export 'streaming_response_generator.dart';
 export 'tool_provider.dart';

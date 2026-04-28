@@ -1,5 +1,6 @@
 import 'package:mcp_bundle/ports.dart';
 
+import 'concurrent_modification_exception.dart';
 import 'session.dart';
 import 'session_state.dart';
 
@@ -63,11 +64,20 @@ abstract class SessionStore {
   /// Save session
   Future<void> save(Session session);
 
+  /// Save session with optimistic concurrency check.
+  ///
+  /// Throws [ConcurrentModificationException] if the session's version
+  /// does not match the currently stored version.
+  Future<void> saveIfCurrent(Session session);
+
   /// Delete session
   Future<void> delete(String sessionId);
 
   /// Clean up expired sessions
   Future<int> cleanupExpired();
+
+  /// Get all sessions for a cross-channel user.
+  Future<List<Session>> getByGlobalUser(String crossChannelUserId);
 
   /// List sessions (with pagination)
   Future<List<Session>> list({
@@ -82,6 +92,7 @@ class InMemorySessionStore implements SessionStore {
   final Map<String, Session> _sessions = {};
   final Map<String, String> _conversationIndex = {};
   final Map<String, String> _userIndex = {};
+  final Map<String, Set<String>> _globalUserIndex = {};
 
   /// Generate a unique key from ConversationKey.
   String _conversationKeyToString(ConversationKey conv) {
@@ -112,8 +123,28 @@ class InMemorySessionStore implements SessionStore {
     _conversationIndex[_conversationKeyToString(session.conversation)] = session.id;
 
     final userKey =
-        '${session.conversation.channel.platform}:${session.principal.identity.channelId}';
+        '${session.conversation.channel.platform}:${session.principal.identity.id}';
     _userIndex[userKey] = session.id;
+
+    // Index by global user
+    if (session.crossChannelUserId != null) {
+      _globalUserIndex
+          .putIfAbsent(session.crossChannelUserId!, () => {})
+          .add(session.id);
+    }
+  }
+
+  @override
+  Future<void> saveIfCurrent(Session session) async {
+    final existing = _sessions[session.id];
+    if (existing != null && existing.version != session.version - 1) {
+      throw ConcurrentModificationException(
+        sessionId: session.id,
+        expectedVersion: session.version - 1,
+        actualVersion: existing.version,
+      );
+    }
+    await save(session);
   }
 
   @override
@@ -123,8 +154,19 @@ class InMemorySessionStore implements SessionStore {
       _conversationIndex.remove(_conversationKeyToString(session.conversation));
 
       final userKey =
-          '${session.conversation.channel.platform}:${session.principal.identity.channelId}';
+          '${session.conversation.channel.platform}:${session.principal.identity.id}';
       _userIndex.remove(userKey);
+
+      // Clean up global user index
+      if (session.crossChannelUserId != null) {
+        final ids = _globalUserIndex[session.crossChannelUserId!];
+        if (ids != null) {
+          ids.remove(sessionId);
+          if (ids.isEmpty) {
+            _globalUserIndex.remove(session.crossChannelUserId!);
+          }
+        }
+      }
     }
   }
 
@@ -140,6 +182,15 @@ class InMemorySessionStore implements SessionStore {
     }
 
     return expired.length;
+  }
+
+  @override
+  Future<List<Session>> getByGlobalUser(String crossChannelUserId) async {
+    final sessionIds = _globalUserIndex[crossChannelUserId] ?? {};
+    return sessionIds
+        .map((id) => _sessions[id])
+        .whereType<Session>()
+        .toList();
   }
 
   @override
@@ -170,6 +221,7 @@ class InMemorySessionStore implements SessionStore {
     _sessions.clear();
     _conversationIndex.clear();
     _userIndex.clear();
+    _globalUserIndex.clear();
   }
 
   /// Get total session count

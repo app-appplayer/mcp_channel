@@ -8,6 +8,7 @@ import 'package:mcp_bundle/ports.dart'
         ConversationKey;
 
 import '../types/channel_identity_info.dart';
+import '../types/extended_channel_event.dart';
 import '../types/file_info.dart';
 import 'connection_state.dart';
 import 'conversation_info.dart';
@@ -71,6 +72,22 @@ abstract class ExtendedChannelPort implements ChannelPort {
   /// Derived from identity.platform.
   String get channelType => identity.platform;
 
+  /// Extended event stream with full type information.
+  ///
+  /// The base [events] stream (from ChannelPort) emits [ChannelEvent]
+  /// for compatibility with code that depends on [ChannelPort].
+  ///
+  /// Use this stream when extended event data is needed:
+  /// - Typed event classification (ChannelEventType enum)
+  /// - Extended conversation key (tenantId, threadId)
+  /// - Rich identity info (ChannelIdentityInfo)
+  /// - Command parsing (command, commandArgs)
+  /// - Action data (actionId, actionValue)
+  ///
+  /// Both streams emit for every event. [extendedEvents] wraps the same
+  /// base event that appears on [events].
+  Stream<ExtendedChannelEvent> get extendedEvents;
+
   /// Extended platform capabilities
   ExtendedChannelCapabilities get extendedCapabilities;
 
@@ -99,6 +116,14 @@ abstract class ExtendedChannelPort implements ChannelPort {
 
   /// Send a response with result (wraps base send with SendResult).
   Future<SendResult> sendWithResult(ChannelResponse response);
+
+  /// Send multiple responses as a batch.
+  ///
+  /// Platforms that support batch sending (e.g., Telegram sendMediaGroup)
+  /// will optimize this into fewer API calls. Others will send sequentially.
+  ///
+  /// Returns results in the same order as responses.
+  Future<List<SendResult>> sendBatch(List<ChannelResponse> responses);
 }
 
 /// Base implementation of ExtendedChannelPort with common functionality.

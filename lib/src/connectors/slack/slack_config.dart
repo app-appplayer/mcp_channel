@@ -8,9 +8,11 @@ class SlackConfig implements ConnectorConfig {
   const SlackConfig({
     required this.botToken,
     this.appToken,
-    this.signingSecret,
+    required this.signingSecret,
+    this.webhookPath,
     this.workspaceId,
-    this.useSocketMode = true,
+    this.useSocketMode = false,
+    this.scopes = const [],
     this.autoReconnect = true,
     this.reconnectDelay = const Duration(seconds: 5),
     this.maxReconnectAttempts = 10,
@@ -23,13 +25,19 @@ class SlackConfig implements ConnectorConfig {
   final String? appToken;
 
   /// Signing secret for verifying requests
-  final String? signingSecret;
+  final String signingSecret;
+
+  /// Webhook endpoint (for Events API HTTP mode)
+  final String? webhookPath;
 
   /// Workspace ID for channel identification
   final String? workspaceId;
 
   /// Whether to use Socket Mode
   final bool useSocketMode;
+
+  /// OAuth scopes
+  final List<String> scopes;
 
   @override
   final String channelType = 'slack';
@@ -43,12 +51,28 @@ class SlackConfig implements ConnectorConfig {
   @override
   final int maxReconnectAttempts;
 
+  /// Validate configuration.
+  ///
+  /// Throws [ArgumentError] if the configuration is invalid:
+  /// - Socket Mode requires appToken
+  /// - HTTP mode requires webhookPath
+  void validate() {
+    if (useSocketMode && appToken == null) {
+      throw ArgumentError('appToken required for Socket Mode');
+    }
+    if (!useSocketMode && webhookPath == null) {
+      throw ArgumentError('webhookPath required for HTTP mode');
+    }
+  }
+
   SlackConfig copyWith({
     String? botToken,
     String? appToken,
     String? signingSecret,
+    String? webhookPath,
     String? workspaceId,
     bool? useSocketMode,
+    List<String>? scopes,
     bool? autoReconnect,
     Duration? reconnectDelay,
     int? maxReconnectAttempts,
@@ -57,8 +81,10 @@ class SlackConfig implements ConnectorConfig {
       botToken: botToken ?? this.botToken,
       appToken: appToken ?? this.appToken,
       signingSecret: signingSecret ?? this.signingSecret,
+      webhookPath: webhookPath ?? this.webhookPath,
       workspaceId: workspaceId ?? this.workspaceId,
       useSocketMode: useSocketMode ?? this.useSocketMode,
+      scopes: scopes ?? this.scopes,
       autoReconnect: autoReconnect ?? this.autoReconnect,
       reconnectDelay: reconnectDelay ?? this.reconnectDelay,
       maxReconnectAttempts: maxReconnectAttempts ?? this.maxReconnectAttempts,

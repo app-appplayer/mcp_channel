@@ -18,7 +18,9 @@ export 'package:mcp_bundle/ports.dart'
 // mcp_channel extended types
 export 'attachment.dart';
 export 'channel_identity_info.dart';
+export 'channel_response_chunk.dart';
 export 'content_block.dart';
+export 'embed.dart';
 export 'extended_channel_event.dart';
 export 'extended_channel_response.dart';
 export 'extended_conversation_key.dart';

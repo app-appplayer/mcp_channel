@@ -2,20 +2,20 @@ import 'package:meta/meta.dart';
 
 import 'message_role.dart';
 
-/// Tool call information.
+/// Tool call information within a session.
 @immutable
-class ToolCall {
-  const ToolCall({
+class SessionToolCall {
+  const SessionToolCall({
     required this.name,
     required this.arguments,
-    this.callId,
+    this.id,
   });
 
-  factory ToolCall.fromJson(Map<String, dynamic> json) {
-    return ToolCall(
+  factory SessionToolCall.fromJson(Map<String, dynamic> json) {
+    return SessionToolCall(
       name: json['name'] as String,
       arguments: Map<String, dynamic>.from(json['arguments'] as Map),
-      callId: json['callId'] as String?,
+      id: json['id'] as String?,
     );
   }
 
@@ -26,44 +26,39 @@ class ToolCall {
   final Map<String, dynamic> arguments;
 
   /// Call ID (for matching with results)
-  final String? callId;
+  final String? id;
 
   Map<String, dynamic> toJson() => {
         'name': name,
         'arguments': arguments,
-        if (callId != null) 'callId': callId,
+        if (id != null) 'id': id,
       };
 
   @override
-  String toString() => 'ToolCall(name: $name, callId: $callId)';
+  String toString() => 'SessionToolCall(name: $name, id: $id)';
 }
 
-/// Tool execution result.
+/// Tool execution result within a session.
 @immutable
-class ToolResult {
-  const ToolResult({
-    this.callId,
-    required this.name,
+class SessionToolResult {
+  const SessionToolResult({
+    required this.toolName,
     required this.content,
     this.success = true,
     this.error,
   });
 
-  factory ToolResult.fromJson(Map<String, dynamic> json) {
-    return ToolResult(
-      callId: json['callId'] as String?,
-      name: json['name'] as String,
+  factory SessionToolResult.fromJson(Map<String, dynamic> json) {
+    return SessionToolResult(
+      toolName: json['toolName'] as String,
       content: json['content'] as String,
       success: json['success'] as bool? ?? true,
       error: json['error'] as String?,
     );
   }
 
-  /// Call ID (matching the tool call)
-  final String? callId;
-
   /// Tool name
-  final String name;
+  final String toolName;
 
   /// Result content
   final String content;
@@ -75,15 +70,14 @@ class ToolResult {
   final String? error;
 
   Map<String, dynamic> toJson() => {
-        if (callId != null) 'callId': callId,
-        'name': name,
+        'toolName': toolName,
         'content': content,
         'success': success,
         if (error != null) 'error': error,
       };
 
   @override
-  String toString() => 'ToolResult(name: $name, success: $success)';
+  String toString() => 'SessionToolResult(toolName: $toolName, success: $success)';
 }
 
 /// A message in session history.
@@ -118,7 +112,7 @@ class SessionMessage {
   /// Creates an assistant message.
   factory SessionMessage.assistant({
     required String content,
-    List<ToolCall>? toolCalls,
+    List<SessionToolCall>? toolCalls,
     DateTime? timestamp,
     Map<String, dynamic>? metadata,
   }) {
@@ -148,7 +142,7 @@ class SessionMessage {
   /// Creates a tool result message.
   factory SessionMessage.tool({
     required String content,
-    required ToolResult result,
+    required SessionToolResult result,
     DateTime? timestamp,
     Map<String, dynamic>? metadata,
   }) {
@@ -172,11 +166,13 @@ class SessionMessage {
       eventId: json['eventId'] as String?,
       toolCalls: json['toolCalls'] != null
           ? (json['toolCalls'] as List)
-              .map((t) => ToolCall.fromJson(t as Map<String, dynamic>))
+              .map((t) =>
+                  SessionToolCall.fromJson(t as Map<String, dynamic>))
               .toList()
           : null,
       toolResult: json['toolResult'] != null
-          ? ToolResult.fromJson(json['toolResult'] as Map<String, dynamic>)
+          ? SessionToolResult.fromJson(
+              json['toolResult'] as Map<String, dynamic>)
           : null,
       metadata: json['metadata'] as Map<String, dynamic>?,
     );
@@ -195,10 +191,10 @@ class SessionMessage {
   final String? eventId;
 
   /// Tool calls (for assistant messages)
-  final List<ToolCall>? toolCalls;
+  final List<SessionToolCall>? toolCalls;
 
   /// Tool result (for tool messages)
-  final ToolResult? toolResult;
+  final SessionToolResult? toolResult;
 
   /// Metadata
   final Map<String, dynamic>? metadata;
@@ -208,8 +204,8 @@ class SessionMessage {
     String? content,
     DateTime? timestamp,
     String? eventId,
-    List<ToolCall>? toolCalls,
-    ToolResult? toolResult,
+    List<SessionToolCall>? toolCalls,
+    SessionToolResult? toolResult,
     Map<String, dynamic>? metadata,
   }) {
     return SessionMessage(

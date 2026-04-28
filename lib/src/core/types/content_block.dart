@@ -201,6 +201,7 @@ class ActionElement {
     this.text,
     this.style,
     this.value,
+    this.url,
     this.options,
     this.confirm,
   });
@@ -210,6 +211,7 @@ class ActionElement {
     required String actionId,
     required String text,
     String? value,
+    String? url,
     String? style,
     ConfirmDialog? confirm,
   }) {
@@ -218,6 +220,7 @@ class ActionElement {
       actionId: actionId,
       text: text,
       value: value,
+      url: url,
       style: style,
       confirm: confirm,
     );
@@ -293,6 +296,7 @@ class ActionElement {
       text: json['text'] as String?,
       style: json['style'] as String?,
       value: json['value'] as String?,
+      url: json['url'] as String?,
       options: json['options'] != null
           ? (json['options'] as List)
               .map((o) => SelectOption.fromJson(o as Map<String, dynamic>))
@@ -319,6 +323,9 @@ class ActionElement {
   /// Action value
   final String? value;
 
+  /// URL for link buttons
+  final String? url;
+
   /// Options for select
   final List<SelectOption>? options;
 
@@ -331,6 +338,7 @@ class ActionElement {
     String? text,
     String? style,
     String? value,
+    String? url,
     List<SelectOption>? options,
     ConfirmDialog? confirm,
   }) {
@@ -340,6 +348,7 @@ class ActionElement {
       text: text ?? this.text,
       style: style ?? this.style,
       value: value ?? this.value,
+      url: url ?? this.url,
       options: options ?? this.options,
       confirm: confirm ?? this.confirm,
     );
@@ -351,6 +360,7 @@ class ActionElement {
         if (text != null) 'text': text,
         if (style != null) 'style': style,
         if (value != null) 'value': value,
+        if (url != null) 'url': url,
         if (options != null)
           'options': options!.map((o) => o.toJson()).toList(),
         if (confirm != null) 'confirm': confirm!.toJson(),

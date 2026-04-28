@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:mcp_bundle/ports.dart';
 import 'package:uuid/uuid.dart';
 
+import '../types/channel_identity_info.dart';
+import 'concurrent_modification_exception.dart';
 import 'principal.dart';
 import 'session.dart';
 import 'session_message.dart';
@@ -24,10 +26,9 @@ class SessionManager {
 
   /// Create a principal from an event.
   Future<Principal> _createPrincipal(ChannelEvent event) async {
-    // Create identity from event's channel info
-    final identity = ChannelIdentity(
-      platform: event.conversation.channel.platform,
-      channelId: event.userId ?? 'unknown',
+    // Create identity info from event's channel info
+    final identity = ChannelIdentityInfo.user(
+      id: event.userId ?? 'unknown',
       displayName: event.userName,
     );
     return Principal.basic(
@@ -78,7 +79,7 @@ class SessionManager {
   /// Create a new session explicitly.
   Future<Session> createSession({
     required ConversationKey conversation,
-    required ChannelIdentity identity,
+    required ChannelIdentityInfo identity,
     Map<String, dynamic>? context,
     Map<String, dynamic>? metadata,
   }) async {
@@ -119,6 +120,29 @@ class SessionManager {
 
     await _store.save(updated);
     return updated;
+  }
+
+  /// Add message with concurrency-safe retry.
+  Future<Session> addMessageSafe(
+    String sessionId,
+    SessionMessage message, {
+    int maxRetries = 3,
+  }) async {
+    for (var attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        final session = await _store.get(sessionId);
+        if (session == null) throw SessionNotFound(sessionId);
+
+        final updated = session.addMessage(message);
+        await _store.saveIfCurrent(updated);
+        return updated;
+      } on ConcurrentModificationException {
+        if (attempt == maxRetries - 1) rethrow;
+        // Re-read and retry
+        continue;
+      }
+    }
+    throw StateError('Unreachable');
   }
 
   /// Update session context.
@@ -245,6 +269,108 @@ class SessionManager {
   /// Manually trigger cleanup.
   Future<int> cleanup() {
     return _store.cleanupExpired();
+  }
+
+  /// Link a session to a global user identity.
+  Future<Session> linkToGlobalUser(
+    String sessionId,
+    String crossChannelUserId,
+  ) async {
+    final session = await _store.get(sessionId);
+    if (session == null) throw SessionNotFound(sessionId);
+
+    final updated = session.copyWith(
+      crossChannelUserId: crossChannelUserId,
+    );
+    await _store.save(updated);
+    return updated;
+  }
+
+  /// Get all sessions for a global user across platforms.
+  Future<List<Session>> getGlobalUserSessions(
+    String crossChannelUserId,
+  ) {
+    return _store.getByGlobalUser(crossChannelUserId);
+  }
+
+  /// Get combined history across all sessions for a global user.
+  ///
+  /// Merges and sorts by timestamp. Useful for providing full context
+  /// to an LLM regardless of which platform the user is currently on.
+  Future<List<SessionMessage>> getGlobalHistory(
+    String crossChannelUserId, {
+    int maxMessages = 100,
+  }) async {
+    final sessions = await _store.getByGlobalUser(crossChannelUserId);
+
+    final allMessages = sessions
+        .expand((s) => s.history)
+        .toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+    if (allMessages.length > maxMessages) {
+      return allMessages.sublist(allMessages.length - maxMessages);
+    }
+    return allMessages;
+  }
+
+  /// Migrate session context to a new platform.
+  ///
+  /// Creates a new session on the target conversation with the source
+  /// session's context and recent history. The source session remains
+  /// active (it is NOT closed).
+  ///
+  /// Both sessions are linked via [crossChannelUserId].
+  Future<Session> migrateSession({
+    required String sourceSessionId,
+    required ConversationKey targetConversation,
+    required ChannelIdentityInfo targetIdentity,
+    int historyToMigrate = 20,
+  }) async {
+    final source = await _store.get(sourceSessionId);
+    if (source == null) throw SessionNotFound(sourceSessionId);
+
+    // Determine cross-channel user ID
+    final globalUserId = source.crossChannelUserId ??
+        'migrated_${source.principal.identity.id}';
+
+    // Link source if not already linked
+    if (source.crossChannelUserId == null) {
+      await linkToGlobalUser(sourceSessionId, globalUserId);
+    }
+
+    // Create new session with migrated context
+    final recentHistory = source.history.length > historyToMigrate
+        ? source.history.sublist(source.history.length - historyToMigrate)
+        : List<SessionMessage>.from(source.history);
+
+    final target = Session(
+      id: _generateSessionId(),
+      conversation: targetConversation,
+      principal: Principal(
+        identity: targetIdentity,
+        tenantId: targetConversation.channel.channelId,
+        roles: source.principal.roles,
+        permissions: source.principal.permissions,
+        authenticatedAt: DateTime.now(),
+        expiresAt: DateTime.now().add(_config.defaultTimeout),
+      ),
+      state: SessionState.active,
+      crossChannelUserId: globalUserId,
+      createdAt: DateTime.now(),
+      lastActivityAt: DateTime.now(),
+      expiresAt: DateTime.now().add(_config.defaultTimeout),
+      context: Map<String, dynamic>.from(source.context),
+      history: recentHistory,
+      metadata: {
+        'migratedFrom': sourceSessionId,
+        'migratedAt': DateTime.now().toIso8601String(),
+        'sourcePlatform': source.conversation.channel.platform,
+      },
+    );
+
+    await _store.save(target);
+    return target;
   }
 
   /// Dispose the session manager.

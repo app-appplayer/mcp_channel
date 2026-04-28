@@ -5,7 +5,9 @@ import '../core/policy/channel_policy.dart';
 import '../core/port/channel_port.dart';
 import '../core/port/connection_state.dart';
 import '../core/port/conversation_info.dart';
+import '../core/port/send_result.dart';
 import '../core/types/channel_identity_info.dart';
+import '../core/types/extended_channel_event.dart';
 import '../core/types/file_info.dart';
 
 /// Base configuration for channel connectors.
@@ -29,6 +31,8 @@ abstract class ConnectorConfig {
 /// channel connectors.
 abstract class BaseConnector implements ExtendedChannelPort {
   final _eventController = StreamController<ChannelEvent>.broadcast();
+  final _extendedEventController =
+      StreamController<ExtendedChannelEvent>.broadcast();
   final _connectionStateController =
       StreamController<ConnectionState>.broadcast();
 
@@ -39,6 +43,10 @@ abstract class BaseConnector implements ExtendedChannelPort {
 
   @override
   Stream<ChannelEvent> get events => _eventController.stream;
+
+  @override
+  Stream<ExtendedChannelEvent> get extendedEvents =>
+      _extendedEventController.stream;
 
   @override
   Stream<ConnectionState> get connectionState =>
@@ -63,10 +71,25 @@ abstract class BaseConnector implements ExtendedChannelPort {
     _connectionStateController.add(state);
   }
 
-  /// Emit a channel event.
+  /// Emit a base channel event (both streams).
+  ///
+  /// Wraps the base event in [ExtendedChannelEvent.fromBase] automatically
+  /// for the extended stream. Connectors should prefer [emitExtendedEvent]
+  /// when they have extended event data.
   void emitEvent(ChannelEvent event) {
     if (_disposed) return;
     _eventController.add(event);
+    _extendedEventController.add(ExtendedChannelEvent.fromBase(event));
+  }
+
+  /// Emit an extended channel event (both streams).
+  ///
+  /// The base event is extracted via [event.base] and emitted on the
+  /// [events] stream. The full extended event is emitted on [extendedEvents].
+  void emitExtendedEvent(ExtendedChannelEvent event) {
+    if (_disposed) return;
+    _eventController.add(event.base);
+    _extendedEventController.add(event);
   }
 
   /// Called when connection is established.
@@ -121,6 +144,7 @@ abstract class BaseConnector implements ExtendedChannelPort {
     _disposed = true;
     _reconnectTimer?.cancel();
     await _eventController.close();
+    await _extendedEventController.close();
     await _connectionStateController.close();
   }
 
@@ -155,6 +179,34 @@ abstract class BaseConnector implements ExtendedChannelPort {
     // Default implementation returns null
     // Subclasses should override with platform-specific implementation
     return Future.value(null);
+  }
+
+  @override
+  String get channelType => identity.platform;
+
+  @override
+  Future<void> edit(String messageId, ChannelResponse response) {
+    throw UnsupportedError('Editing not supported by this channel');
+  }
+
+  @override
+  Future<void> delete(String messageId) {
+    throw UnsupportedError('Deleting not supported by this channel');
+  }
+
+  @override
+  Future<void> react(String messageId, String reaction) {
+    throw UnsupportedError('Reactions not supported by this channel');
+  }
+
+  /// Default sequential implementation of batch send.
+  @override
+  Future<List<SendResult>> sendBatch(List<ChannelResponse> responses) async {
+    final results = <SendResult>[];
+    for (final response in responses) {
+      results.add(await sendWithResult(response));
+    }
+    return results;
   }
 }
 

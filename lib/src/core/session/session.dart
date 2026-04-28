@@ -13,6 +13,8 @@ class Session {
     required this.conversation,
     required this.principal,
     required this.state,
+    this.version = 0,
+    this.crossChannelUserId,
     required this.createdAt,
     required this.lastActivityAt,
     this.expiresAt,
@@ -32,6 +34,8 @@ class Session {
         (s) => s.name == json['state'],
         orElse: () => SessionState.expired,
       ),
+      version: json['version'] as int? ?? 0,
+      crossChannelUserId: json['crossChannelUserId'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       lastActivityAt: DateTime.parse(json['lastActivityAt'] as String),
       expiresAt: json['expiresAt'] != null
@@ -58,6 +62,14 @@ class Session {
 
   /// Current state
   final SessionState state;
+
+  /// Optimistic concurrency version number.
+  /// Incremented on every copyWith. Used to detect concurrent modifications.
+  final int version;
+
+  /// Cross-channel user identifier.
+  /// When set, enables linking sessions for the same user across platforms.
+  final String? crossChannelUserId;
 
   /// Creation timestamp
   final DateTime createdAt;
@@ -88,12 +100,13 @@ class Session {
   /// Check if session is closed
   bool get isClosed => state == SessionState.closed;
 
-  /// Create copy with updated fields
+  /// Create copy with updated fields and auto-incremented version.
   Session copyWith({
     String? id,
     ConversationKey? conversation,
     Principal? principal,
     SessionState? state,
+    String? crossChannelUserId,
     DateTime? createdAt,
     DateTime? lastActivityAt,
     DateTime? expiresAt,
@@ -106,6 +119,8 @@ class Session {
       conversation: conversation ?? this.conversation,
       principal: principal ?? this.principal,
       state: state ?? this.state,
+      version: version + 1,
+      crossChannelUserId: crossChannelUserId ?? this.crossChannelUserId,
       createdAt: createdAt ?? this.createdAt,
       lastActivityAt: lastActivityAt ?? this.lastActivityAt,
       expiresAt: expiresAt ?? this.expiresAt,
@@ -199,6 +214,9 @@ class Session {
         'conversation': conversation.toJson(),
         'principal': principal.toJson(),
         'state': state.name,
+        'version': version,
+        if (crossChannelUserId != null)
+          'crossChannelUserId': crossChannelUserId,
         'createdAt': createdAt.toIso8601String(),
         'lastActivityAt': lastActivityAt.toIso8601String(),
         if (expiresAt != null) 'expiresAt': expiresAt!.toIso8601String(),

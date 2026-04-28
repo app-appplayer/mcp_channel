@@ -130,7 +130,7 @@ class ExtendedChannelEvent {
     required String id,
     required ConversationKey conversation,
     required String command,
-    List<String>? args,
+    List<String>? commandArgs,
     String? userId,
     String? userName,
     DateTime? timestamp,
@@ -143,7 +143,7 @@ class ExtendedChannelEvent {
         id: id,
         conversation: conversation,
         type: 'command',
-        text: '/$command ${args?.join(' ') ?? ''}'.trim(),
+        text: '/$command ${commandArgs?.join(' ') ?? ''}'.trim(),
         userId: userId,
         userName: userName,
         timestamp: timestamp ?? DateTime.now(),
@@ -153,7 +153,7 @@ class ExtendedChannelEvent {
       identityInfo: identityInfo,
       eventType: ChannelEventType.command,
       command: command,
-      commandArgs: args,
+      commandArgs: commandArgs,
       rawPayload: rawPayload,
     );
   }

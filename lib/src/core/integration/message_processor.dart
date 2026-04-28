@@ -54,6 +54,18 @@ sealed class ProcessResult {
     required String toolName,
     required Map<String, dynamic> arguments,
   }) = NeedsToolResult;
+
+  /// Create a result that requires multiple tool executions.
+  factory ProcessResult.needsTools({
+    required List<ToolRequest> tools,
+    ToolExecutionMode mode,
+  }) = NeedsToolsResult;
+
+  /// Create a result that requires an agentic loop.
+  factory ProcessResult.needsAgenticLoop({
+    required List<ToolRequest> initialTools,
+    int maxIterations,
+  }) = NeedsAgenticLoopResult;
 }
 
 /// Response with a channel message.
@@ -86,4 +98,59 @@ final class NeedsToolResult extends ProcessResult {
 
   /// Arguments for the tool.
   final Map<String, dynamic> arguments;
+}
+
+/// Execution mode for multiple tool requests.
+enum ToolExecutionMode {
+  /// Execute tools sequentially, one after another
+  sequential,
+
+  /// Execute tools in parallel
+  parallel,
+}
+
+/// A single tool call request within a multi-tool result.
+class ToolRequest {
+  const ToolRequest({
+    required this.id,
+    required this.toolName,
+    required this.arguments,
+  });
+
+  /// Unique identifier for this request within a batch.
+  final String id;
+
+  /// Name of the tool to execute
+  final String toolName;
+
+  /// Arguments for the tool
+  final Map<String, dynamic> arguments;
+}
+
+/// Requires multiple tool executions before responding.
+final class NeedsToolsResult extends ProcessResult {
+  const NeedsToolsResult({
+    required this.tools,
+    this.mode = ToolExecutionMode.sequential,
+  }) : super._();
+
+  /// List of tool requests to execute
+  final List<ToolRequest> tools;
+
+  /// Execution mode (sequential or parallel)
+  final ToolExecutionMode mode;
+}
+
+/// Requires an agentic loop (multi-step tool execution).
+final class NeedsAgenticLoopResult extends ProcessResult {
+  const NeedsAgenticLoopResult({
+    required this.initialTools,
+    this.maxIterations = 10,
+  }) : super._();
+
+  /// Initial tool requests to start the agentic loop.
+  final List<ToolRequest> initialTools;
+
+  /// Maximum number of loop iterations allowed. Default: 10.
+  final int maxIterations;
 }

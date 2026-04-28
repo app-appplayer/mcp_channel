@@ -1,172 +1,55 @@
-# mcp_channel
+# MCP Channel
 
-A unified channel abstraction layer for messaging platforms with MCP (Model Context Protocol) integration.
+A unified channel abstraction layer for messaging platforms with MCP integration. Provides a single bidirectional event/response API across Slack, Discord, Telegram, Kakao, Email, Microsoft Teams, and more.
 
 ## Features
 
-- **Platform-agnostic messaging**: Support for Slack, Telegram, Discord, Teams, and more
-- **MCP Integration**: Bidirectional integration with MCP ecosystem
-- **Session Management**: Conversation state with history and context
-- **Idempotency**: Duplicate event handling with configurable TTL
-- **Policy Enforcement**: Rate limiting, retry with backoff, circuit breaker
-- **Type-safe API**: Immutable data classes with factory constructors
-
-## Installation
-
-```yaml
-dependencies:
-  mcp_channel: ^0.1.0
-```
+- **Platform-agnostic messaging** via `ChannelPort` adapters.
+- **Connectors** — Slack (Socket Mode + Events API), Discord, Email, Kakao. Telegram and Teams scaffolded.
+- **Rich content** — `ContentBlock` system, attachments, action elements, threading, reactions, typing indicators.
+- **Session management** — `Session`, `Principal`, `SessionManager`, `SessionStore` with conversation history and context.
+- **Idempotency** — duplicate-event suppression with configurable TTL.
+- **Policy enforcement** — rate limiting, retry-with-backoff, circuit breaker.
+- **MCP integration** — `ChannelRuntime` orchestrates inbound events into MCP/LLM processing.
+- **Crypto** — signature verification helpers and AES message handling (e.g. WeCom encryption).
 
 ## Quick Start
 
 ```dart
 import 'package:mcp_channel/mcp_channel.dart';
 
-void main() async {
-  // Create a channel runtime with inbound processing
-  final runtime = ChannelRuntime.inbound(
-    mcpClients: {'default': mcpClient},
-    defaultMode: InboundProcessingMode.llm,
-  );
+final runtime = ChannelRuntime.inbound(
+  mcpClients: {'default': mcpClient},
+  defaultMode: InboundProcessingMode.llm,
+);
 
-  // Register a Slack channel
-  final slackConfig = SlackConfig(
-    botToken: 'xoxb-...',
-    appToken: 'xapp-...',
-    useSocketMode: true,
-  );
-  runtime.registerChannel('slack', SlackConnector(slackConfig));
+runtime.registerChannel('slack', SlackConnector(
+  SlackConfig(botToken: 'xoxb-...', appToken: 'xapp-...', useSocketMode: true),
+));
 
-  // Start the runtime
-  await runtime.start();
-
-  // Process events
-  await for (final event in runtime.events) {
-    final response = await runtime.processEvent(event);
-    if (response != null) {
-      await runtime.sendResponse(response);
-    }
+await runtime.start();
+await for (final event in runtime.events) {
+  final response = await runtime.processEvent(event);
+  if (response != null) {
+    await runtime.sendResponse(response);
   }
 }
 ```
 
 ## Core Components
 
-### ChannelEvent
+- `ChannelEvent` / `ChannelResponse` — typed inbound events and outbound responses with rich content blocks.
+- `ChannelPort` — abstract platform adapter interface (start, stop, send, edit, delete, react, sendTyping).
+- `ChannelCapabilities` — feature-flag descriptor per connector.
+- `Session` / `SessionManager` / `Principal` — conversation identity and history.
+- `IdempotencyGuard` — duplicate-event guard.
+- `ChannelPolicy` + `PolicyExecutor` — rate-limit / retry / circuit-breaker pipeline.
 
-Represents incoming events from messaging platforms:
+## Support
 
-```dart
-final event = ChannelEvent.message(
-  eventId: 'evt_123',
-  channelType: 'slack',
-  identity: ChannelIdentity.user(id: 'U123'),
-  conversation: ConversationKey(
-    channelType: 'slack',
-    tenantId: 'T123',
-    roomId: 'C456',
-  ),
-  text: 'Hello!',
-);
-```
-
-### ChannelResponse
-
-Represents outgoing responses to platforms:
-
-```dart
-final response = ChannelResponse.text(
-  conversation: event.conversation,
-  text: 'Hi there!',
-);
-
-// Rich content
-final richResponse = ChannelResponse.rich(
-  conversation: event.conversation,
-  blocks: [
-    ContentBlock.section(text: 'Welcome!'),
-    ContentBlock.actions(elements: [
-      ActionElement.primaryButton(
-        actionId: 'btn_start',
-        text: 'Get Started',
-      ),
-    ]),
-  ],
-);
-```
-
-### Session Management
-
-```dart
-final store = InMemorySessionStore();
-final manager = SessionManager(store);
-
-final session = await manager.getOrCreateSession(event);
-final updated = session
-    .addMessage(SessionMessage.user(content: 'Hello', eventId: event.eventId))
-    .updateContext('topic', 'greeting');
-```
-
-### Idempotency Guard
-
-```dart
-final guard = IdempotencyGuard(InMemoryIdempotencyStore());
-
-final result = await guard.process(event, () async {
-  // Process event...
-  return IdempotencyResult.success(response: response);
-});
-```
-
-### Policy Execution
-
-```dart
-final policy = ChannelPolicy(
-  rateLimit: RateLimitConfig(
-    maxRequests: 100,
-    window: Duration(minutes: 1),
-  ),
-  retry: RetryConfig(
-    maxAttempts: 3,
-    backoffMultiplier: 2.0,
-  ),
-  circuitBreaker: CircuitBreakerConfig(
-    failureThreshold: 5,
-    resetTimeout: Duration(minutes: 1),
-  ),
-);
-
-final executor = PolicyExecutor(policy, 'slack');
-final result = await executor.execute(() => sendMessage());
-```
-
-## Architecture
-
-```
-mcp_channel/
-├── lib/
-│   ├── mcp_channel.dart              # Main export
-│   └── src/
-│       ├── core/
-│       │   ├── types/                # ChannelEvent, ChannelResponse, etc.
-│       │   ├── port/                 # ChannelPort interface
-│       │   ├── session/              # Session management
-│       │   ├── idempotency/          # Duplicate handling
-│       │   └── policy/               # Rate limit, retry, circuit breaker
-│       ├── integration/              # MCP integration
-│       └── connectors/               # Platform connectors
-│           └── slack/
-└── test/
-```
-
-## Supported Platforms
-
-- Slack (Socket Mode, Events API)
-- Telegram (planned)
-- Discord (planned)
-- Microsoft Teams (planned)
+- [Issue Tracker](https://github.com/app-appplayer/mcp_channel/issues)
+- [Discussions](https://github.com/app-appplayer/mcp_channel/discussions)
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE).
